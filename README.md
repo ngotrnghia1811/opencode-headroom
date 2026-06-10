@@ -51,26 +51,22 @@ bun add opencode-headroom
 
 Add to your opencode config:
 
-```json
+```jsonc
 // opencode.json  or  .opencode/opencode.json
-{
-  "plugin": ["opencode-headroom"]
-}
+{ "plugin": ["opencode-headroom"] }
 ```
 
-### Local path (development)
+### Local development
 
 ```bash
 git clone https://github.com/ngotrnghia1811/opencode-headroom.git
 cd opencode-headroom && bun install
 ```
 
-Add to your opencode config:
+Local path in config:
 
 ```json
-{
-  "plugin": ["/absolute/path/to/opencode-headroom"]
-}
+{ "plugin": ["/absolute/path/to/opencode-headroom"] }
 ```
 
 ### With options
@@ -90,6 +86,32 @@ Add to your opencode config:
   ]
 }
 ```
+
+### Local workspace with `opencode-local.sh`
+
+If you use a custom XDG-workspace wrapper (like `./opencode-local.sh` in this repository), the config lives at:
+
+```
+.opencode-workspace/config/opencode/opencode.json
+```
+
+1. Install the plugin via npm or clone locally
+2. Add `"opencode-headroom"` to the `"plugin"` array in that config file
+3. Restart opencode — the plugin loads automatically
+
+**Example** — add to an existing `plugin` array:
+
+```jsonc
+{
+  "plugin": [
+    "opencode-claude-auth@latest",
+    "@tarquinen/opencode-dcp@latest",
+    "opencode-headroom"           // ← add this line
+  ]
+}
+```
+
+When running via `./opencode-local.sh`, the wrapper points `XDG_CONFIG_HOME` at `.opencode-workspace/config/`, so that's where opencode reads its config.
 
 For the full setup guide (verification steps, config reference, CCR lifecycle, troubleshooting), see [SETUP.md](SETUP.md).
 
