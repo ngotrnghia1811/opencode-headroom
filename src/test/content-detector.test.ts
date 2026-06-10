@@ -137,11 +137,17 @@ export function parseConfig(raw: unknown): Config {
     expect(result.confidence).toBeGreaterThanOrEqual(0.4)
   })
 
-  test("falls back to plain text for unrecognized content", () => {
-    const content = "This is just some plain text. Nothing special here."
+  test("detects prose (multi-sentence plain text)", () => {
+    const content = "This is the first sentence. This is the second. And here is a third one here."
+    const result = detectContentType(content)
+    expect(result.content_type).toBe(ContentType.Prose)
+    expect(result.confidence).toBeGreaterThanOrEqual(0.5)
+  })
+
+  test("falls back to plain text for single-sentence text", () => {
+    const content = "This is just some plain text with no sentence boundaries."
     const result = detectContentType(content)
     expect(result.content_type).toBe(ContentType.PlainText)
-    expect(result.confidence).toBeGreaterThanOrEqual(0)
   })
 
   test("handles empty string", () => {

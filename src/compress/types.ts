@@ -6,6 +6,7 @@ export const ContentType = {
   GitDiff: "diff",
   Html: "html",
   PlainText: "text",
+  Prose: "prose",
 } as const
 export type ContentType = (typeof ContentType)[keyof typeof ContentType]
 

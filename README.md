@@ -81,7 +81,7 @@ Local path in config:
       "real_time": true,
       "cache_align": true,
       "verbose": false,
-      "ccr_db_path": "/Users/nghiango-mbp/opencode-learn/.opencode-workspace/data/opencode/headroom.db"
+      "ccr_db_path": "path/to/opencode/headroom.db"
     }]
   ]
 }

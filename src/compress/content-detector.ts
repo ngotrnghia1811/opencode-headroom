@@ -61,6 +61,9 @@ export function detectContentType(content: string): DetectionResult {
   const codeResult = tryDetectCode(content)
   if (codeResult && codeResult.confidence >= 0.5) return codeResult
 
+  const proseResult = tryDetectProse(content)
+  if (proseResult) return proseResult
+
   return { content_type: ContentType.PlainText, confidence: 0.5, metadata: {} }
 }
 
@@ -211,4 +214,45 @@ function tryDetectCode(content: string): DetectionResult | null {
 
   const confidence = Math.min(1.0, 0.4 + ratio * 0.4 + bestScore * 0.02)
   return { content_type: ContentType.SourceCode, confidence, metadata: { language: bestLang, pattern_matches: bestScore } }
+}
+
+// ─── Prose detection (plain text with multiple sentences) ───────────
+
+const SENTENCE_END_RE = /[.!?]\s+[A-Z]/g
+
+function tryDetectProse(content: string): DetectionResult | null {
+  // Count sentence boundaries: period/exclamation/question followed by space and capital
+  const matches = [...content.matchAll(SENTENCE_END_RE)]
+  const boundaries = matches.length
+
+  // Also count the last sentence if text ends with period
+  const trimmed = content.trimEnd()
+  if (trimmed.endsWith(".") || trimmed.endsWith("!") || trimmed.endsWith("?")) {
+    // Already counted as part of boundaries if followed by capital, but
+    // the final sentence won't have that. Add 1 if we have at least some content.
+  }
+
+  // Minimum 2 sentences (headroom routes multi-sentence prose to Kompress)
+  const estimatedSentences = boundaries + 1
+  if (estimatedSentences < 2) return null
+
+  // Must be predominantly text (not code/log/diff)
+  // Heuristic: at least 70% of lines don't look like code
+  const lines = content.split("\n").filter(l => l.trim())
+  if (lines.length === 0) return null
+
+  let proseLines = 0
+  for (const line of lines) {
+    const t = line.trim()
+    // Lines that look like prose: start with capital letter, contain spaces, end with punctuation
+    if (/^[A-Z]/.test(t) && t.includes(" ") && !/^\s*(import|export|function|const|let|var|class|def)\s/.test(t)) {
+      proseLines++
+    }
+  }
+
+  const proseRatio = proseLines / lines.length
+  if (proseRatio < 0.5) return null
+
+  const confidence = Math.min(0.9, 0.5 + proseRatio * 0.4)
+  return { content_type: ContentType.Prose, confidence, metadata: { sentences: estimatedSentences } }
 }

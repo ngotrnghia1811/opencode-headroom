@@ -6,7 +6,7 @@ import { countTokensSync } from "../util/tokens"
 describe("compressBlock (real-time hook)", () => {
   // ─── 1. compressBlock on a log string → returns compressed + strategies
 
-  test("compresses a log string", () => {
+  test("compresses a log string", async () => {
     const lines: string[] = []
     for (let i = 0; i < 200; i++) {
       lines.push(`2024-01-01 12:00:${String(i % 60).padStart(2, "0")} INFO Processing item ${i}`)
@@ -20,7 +20,7 @@ describe("compressBlock (real-time hook)", () => {
     }
     const text = lines.join("\n")
 
-    const result = compressBlock(text)
+    const result = await compressBlock(text)
     expect(result).not.toBeNull()
     const r = result as CompressBlockResult
     expect(r.strategies.length).toBeGreaterThan(0)
@@ -31,7 +31,7 @@ describe("compressBlock (real-time hook)", () => {
 
   // ─── 2. compressBlock on a JSON array → returns compressed + strategies
 
-  test("compresses a JSON array", () => {
+  test("compresses a JSON array", async () => {
     const items: Record<string, unknown>[] = []
     for (let i = 0; i < 100; i++) {
       items.push({
@@ -43,7 +43,7 @@ describe("compressBlock (real-time hook)", () => {
     }
     const text = JSON.stringify(items)
 
-    const result = compressBlock(text)
+    const result = await compressBlock(text)
     expect(result).not.toBeNull()
     const r = result as CompressBlockResult
     expect(r.strategies).toContain("smart_crusher")
@@ -54,18 +54,18 @@ describe("compressBlock (real-time hook)", () => {
     expect(parsed.length).toBeLessThan(100)
   })
 
-  // ─── 3. compressBlock on plain text → returns null
+  // ─── 3. compressBlock on short plain text → returns null (< 3 sentences)
 
-  test("returns null for plain text", () => {
-    const text = "This is a simple paragraph of plain English text. It does not contain any structured data, code blocks, log patterns, or diff formats. Just regular prose that would be classified as plain text by the content detector."
+  test("returns null for short plain text", async () => {
+    const text = "Hello world. This is a test."
 
-    const result = compressBlock(text)
+    const result = await compressBlock(text)
     expect(result).toBeNull()
   })
 
   // ─── 4. compressBlock on a diff → returns compressed
 
-  test("compresses a diff", () => {
+  test("compresses a diff", async () => {
     const lines: string[] = ["diff --git a/file.ts b/file.ts", "index abc123..def456 100644", "--- a/file.ts", "+++ b/file.ts"]
     // Generate many hunks to make it compressible
     for (let h = 0; h < 30; h++) {
@@ -78,7 +78,7 @@ describe("compressBlock (real-time hook)", () => {
     }
     const text = lines.join("\n")
 
-    const result = compressBlock(text)
+    const result = await compressBlock(text)
     expect(result).not.toBeNull()
     const r = result as CompressBlockResult
     expect(r.strategies).toContain("diff_compressor")
@@ -87,7 +87,7 @@ describe("compressBlock (real-time hook)", () => {
 
   // ─── 5. compressBlock token count < input token count ─────────────
 
-  test("tokensAfter is less than original token count for compressible content", () => {
+  test("tokensAfter is less than original token count for compressible content", async () => {
     // Build a large search-results-like string
     const lines: string[] = []
     for (let i = 0; i < 300; i++) {
@@ -98,7 +98,7 @@ describe("compressBlock (real-time hook)", () => {
     const text = lines.join("\n")
 
     const originalTokens = countTokensSync(text)
-    const result = compressBlock(text)
+    const result = await compressBlock(text)
 
     if (result) {
       expect(result.tokensAfter).toBeLessThan(originalTokens)
@@ -109,7 +109,7 @@ describe("compressBlock (real-time hook)", () => {
 
   // ─── 6. compressBlock with store → CCR marker ─────────────────────
 
-  test("injects CCR marker when store is provided", () => {
+  test("injects CCR marker when store is provided", async () => {
     const store = new CcrStore()
     const items: Record<string, unknown>[] = []
     for (let i = 0; i < 100; i++) {
@@ -117,7 +117,7 @@ describe("compressBlock (real-time hook)", () => {
     }
     const text = JSON.stringify(items)
 
-    const result = compressBlock(text, store)
+    const result = await compressBlock(text, store)
     expect(result).not.toBeNull()
     const r = result as CompressBlockResult
     expect(r.compressed).toInclude("<<ccr:")
@@ -126,14 +126,14 @@ describe("compressBlock (real-time hook)", () => {
 
   // ─── 7. compressBlock with no store → no CCR marker ───────────────
 
-  test("does not inject CCR marker when no store is provided", () => {
+  test("does not inject CCR marker when no store is provided", async () => {
     const items: Record<string, unknown>[] = []
     for (let i = 0; i < 100; i++) {
       items.push({ id: i, name: `item-${i}`, value: i * 10, desc: `Description for item ${i}` })
     }
     const text = JSON.stringify(items)
 
-    const result = compressBlock(text)
+    const result = await compressBlock(text)
     expect(result).not.toBeNull()
     const r = result as CompressBlockResult
     expect(r.compressed).not.toInclude("<<ccr:")
@@ -141,8 +141,8 @@ describe("compressBlock (real-time hook)", () => {
 
   // ─── 8. compressBlock fail-open: empty string → null ──────────────
 
-  test("returns null gracefully for empty string", () => {
-    const result = compressBlock("")
+  test("returns null gracefully for empty string", async () => {
+    const result = await compressBlock("")
     expect(result).toBeNull()
   })
 })

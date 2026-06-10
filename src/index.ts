@@ -2,6 +2,7 @@ import type { Plugin } from "@opencode-ai/plugin"
 import { parseOptions } from "./config"
 import { applyCompressionToMessages, compressBlock } from "./compress/pipeline"
 import { normalizeSystemPrompt } from "./compress/cache-aligner"
+import { CompressionCache } from "./compress/compression-cache"
 import { CcrStore } from "./ccr/store"
 import { createRetrieveTool } from "./tool/retrieve"
 import { createStatsTool, createSessionStats, recordCompression } from "./tool/stats"
@@ -21,12 +22,14 @@ export const server: Plugin = async (_input, options) => {
 
   const store = new CcrStore({ dbPath: config.ccr_db_path ?? defaultCcrDbPath() })
 
+  const cache = new CompressionCache()
+
   const sessionStats: SessionStats = createSessionStats()
 
   const hooks: Record<string, unknown> = {
     "experimental.chat.messages.transform": async (_input: unknown, output: { messages: unknown[] }) => {
       const messages = output.messages as Parameters<typeof applyCompressionToMessages>[0]
-      const result = applyCompressionToMessages(messages, config, store)
+      const result = await applyCompressionToMessages(messages, config, store, cache)
       if (config.verbose && result.tokens_saved > 0) {
         console.log(`[headroom] compressed ${result.tokens_saved} tokens via: ${result.strategies.join(", ")}`)
       }
@@ -46,7 +49,7 @@ export const server: Plugin = async (_input, options) => {
       const tokenCount = await countTokensSafe(text)
       const minTokens = config.min_tokens_to_compress ?? 200
       if (tokenCount < minTokens) return
-      const result = compressBlock(text, store)
+      const result = await compressBlock(text, store, cache)
       if (!result) return
       if (result.tokensAfter >= tokenCount) return
       output.output = result.compressed
