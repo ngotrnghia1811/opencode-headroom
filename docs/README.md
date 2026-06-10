@@ -134,6 +134,7 @@ For the full setup guide (verification steps, config reference, CCR lifecycle, t
 | `cache_align` | `true` | Normalize system prompt dynamic tokens for KV cache stability |
 | `verbose` | `false` | Log compression events to stdout |
 | `ccr_db_path` | *(in-memory)* | Path to SQLite file for persistent CCR storage across sessions |
+| `compressors` | All `true` | Per-compressor toggles. Keys: `smart_crusher`, `log`, `search`, `diff`, `kompress`. Set any to `false` to disable. |
 
 ---
 
@@ -333,6 +334,7 @@ Or with options:
 | `cache_align` | `true` | Normalize system prompt dynamic tokens for KV cache stability |
 | `verbose` | `false` | Log compression events to stdout |
 | `ccr_db_path` | *(in-memory)* | Path to SQLite file for persistent CCR storage across sessions |
+| `compressors` | All `true` | Per-compressor toggles. Keys: `smart_crusher`, `log`, `search`, `diff`, `kompress`. Set any to `false` to disable. |
 
 ---
 

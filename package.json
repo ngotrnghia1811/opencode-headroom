@@ -1,6 +1,6 @@
 {
   "name": "@ngotrnghia1811/opencode-headroom",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Context compression plugin for opencode — port of headroom with Kneedle adaptive-K, BM25 relevance scoring, and CCR reversibility",
   "type": "module",
   "exports": {

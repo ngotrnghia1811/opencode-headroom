@@ -9,6 +9,7 @@ import { ContentType } from "./types"
 import type { CcrStore } from "../ccr/store"
 import { isMixedContent, splitIntoSections } from "./mixed-content"
 import type { CompressionCache } from "./compression-cache"
+import type { CompressorConfig } from "../config"
 
 export interface PipelineConfig {
   enabled: boolean
@@ -37,13 +38,16 @@ async function dispatchCompressor(
   text: string,
   contentType: ContentType,
   store?: CcrStore,
-): Promise<{ text: string; strategy: string }> {
+  compressors?: CompressorConfig,
+): Promise<{ text: string; strategy: string } | null> {
   switch (contentType) {
     case ContentType.JsonArray: {
+      if (compressors && !compressors.smart_crusher) return null
       const result = await crushJsonArray(text, undefined, store, undefined)
       return { text: result, strategy: "smart_crusher" }
     }
     case ContentType.Prose: {
+      if (compressors && !compressors.kompress) return null
       const result = await compressText(text, undefined, store)
       if (!result) return { text, strategy: "passthrough" }
       // Token-monotone: verify compression actually shrinks
@@ -53,10 +57,13 @@ async function dispatchCompressor(
       return { text: result.compressed, strategy: "kompress" }
     }
     case ContentType.SearchResults:
+      if (compressors && !compressors.search) return null
       return { text: compressSearch(text, undefined, store), strategy: "search_compressor" }
     case ContentType.BuildOutput:
+      if (compressors && !compressors.log) return null
       return { text: compressLog(text, undefined, store), strategy: "log_compressor" }
     case ContentType.GitDiff:
+      if (compressors && !compressors.diff) return null
       return { text: compressDiff(text, undefined, store), strategy: "diff_compressor" }
     default:
       return { text, strategy: "passthrough" }
@@ -73,6 +80,7 @@ export async function compressBlock(
   text: string,
   store?: CcrStore,
   cache?: CompressionCache,
+  compressors?: CompressorConfig,
 ): Promise<CompressBlockResult | null> {
   if (!text) return null
 
@@ -103,10 +111,15 @@ export async function compressBlock(
         totalAfter += section.content.length
         continue
       }
-      const result = await dispatchCompressor(section.content, section.content_type, store)
-      compressedSections.push(result.text)
-      totalAfter += result.text.length
-      strategies.push(result.strategy)
+      const result = await dispatchCompressor(section.content, section.content_type, store, compressors)
+      if (result) {
+        compressedSections.push(result.text)
+        totalAfter += result.text.length
+        strategies.push(result.strategy)
+      } else {
+        compressedSections.push(section.content)
+        totalAfter += section.content.length
+      }
     }
 
     // Token-monotone guard on reassembled output
@@ -127,7 +140,12 @@ export async function compressBlock(
     return null
   }
 
-  const { text: compressed, strategy } = await dispatchCompressor(text, detection.content_type, store)
+  const dispatchResult = await dispatchCompressor(text, detection.content_type, store, compressors)
+  if (!dispatchResult) {
+    if (cache) cache.markSkip(text)
+    return null
+  }
+  const { text: compressed, strategy } = dispatchResult
   if (compressed === text) {
     if (cache) cache.markSkip(text)
     return null
@@ -165,6 +183,7 @@ export async function applyCompressionToMessages(
   config?: Partial<PipelineConfig>,
   store?: CcrStore,
   cache?: CompressionCache,
+  compressors?: CompressorConfig,
 ): Promise<{ tokens_consumed: number; tokens_saved: number; strategies: string[] }> {
   const cfg: PipelineConfig = { ...DEFAULTS, ...config } as PipelineConfig
   const liveStart = cfg.live_zone_only ? findLiveZoneStart(messages) : 0
@@ -178,7 +197,7 @@ export async function applyCompressionToMessages(
     for (const part of msg.parts) {
       // Compress tool result outputs
       if (part.type === "tool" && part.state?.status === "completed" && part.state.output) {
-        const result = await compressPart(part.state.output, cfg, store, cache)
+        const result = await compressPart(part.state.output, cfg, store, cache, compressors)
         tokensConsumed += result.tokens_before
         if (result.didCompress) {
           part.state.output = result.text
@@ -188,7 +207,7 @@ export async function applyCompressionToMessages(
       }
       // Compress large text parts
       if (part.type === "text" && part.text) {
-        const result = await compressPart(part.text, cfg, store, cache)
+        const result = await compressPart(part.text, cfg, store, cache, compressors)
         tokensConsumed += result.tokens_before
         if (result.didCompress) {
           part.text = result.text
@@ -207,6 +226,7 @@ async function compressPart(
   cfg: PipelineConfig,
   store?: CcrStore,
   cache?: CompressionCache,
+  compressors?: CompressorConfig,
 ): Promise<{ text: string; strategy: string; tokens_before: number; tokens_after: number; didCompress: boolean }> {
   const tokensBefore = countTokensSync(text)
 
@@ -230,7 +250,12 @@ async function compressPart(
 
   try {
     const detection = detectContentType(text)
-    const { text: compressed, strategy } = await dispatchCompressor(text, detection.content_type, store)
+    const dispatchResult = await dispatchCompressor(text, detection.content_type, store, compressors)
+    if (!dispatchResult) {
+      if (cache) cache.markSkip(text)
+      return { text, strategy: "passthrough_disabled", tokens_before: tokensBefore, tokens_after: tokensBefore, didCompress: false }
+    }
+    const { text: compressed, strategy } = dispatchResult
     const tokensAfter = countTokensSync(compressed)
 
     if (tokensAfter >= tokensBefore || compressed === text) {

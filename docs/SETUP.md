@@ -123,6 +123,7 @@ All options are optional. Omitted options use their defaults.
 | `cache_align` | `boolean` | `true` | Normalize dynamic tokens (UUIDs, timestamps, hex session IDs) in the system prompt to improve KV cache hit rates. |
 | `verbose` | `boolean` | `false` | Log compression events to stdout: `[headroom] compressed N tokens via: strategy1, strategy2`. |
 | `ccr_db_path` | `string` | *(in-memory)* | Path to a SQLite file for persistent CCR storage across sessions. Use an absolute path (e.g. `~/.local/share/opencode/headroom.db`). When unset, CCR entries live in `:memory:` and are lost on session end. |
+| `compressors` | `object` | All `true` | Per-compressor toggles. Keys: `smart_crusher`, `log`, `search`, `diff`, `kompress`. Set any to `false` to disable that compressor. |
 
 ### Full config example
 
@@ -141,6 +142,28 @@ All options are optional. Omitted options use their defaults.
   ]
 }
 ```
+
+### Per-compressor toggles
+
+Disable individual compressors via the `compressors` object:
+
+```json
+{
+  "plugin": [
+    ["@ngotrnghia1811/opencode-headroom", {
+      "compressors": {
+        "smart_crusher": true,
+        "log": true,
+        "search": false,
+        "diff": true,
+        "kompress": false
+      }
+    }]
+  ]
+}
+```
+
+All keys default to `true` when omitted. Setting a key to `false` makes that content type pass through uncompressed. Unknown keys are silently ignored.
 
 ---
 

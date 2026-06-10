@@ -1,5 +1,6 @@
 import type { Plugin } from "@opencode-ai/plugin"
 import { parseOptions } from "./config"
+import type { CompressorConfig } from "./config"
 import { applyCompressionToMessages, compressBlock } from "./compress/pipeline"
 import { normalizeSystemPrompt } from "./compress/cache-aligner"
 import { CompressionCache } from "./compress/compression-cache"
@@ -29,7 +30,7 @@ export const server: Plugin = async (_input, options) => {
   const hooks: Record<string, unknown> = {
     "experimental.chat.messages.transform": async (_input: unknown, output: { messages: unknown[] }) => {
       const messages = output.messages as Parameters<typeof applyCompressionToMessages>[0]
-      const result = await applyCompressionToMessages(messages, config, store, cache)
+      const result = await applyCompressionToMessages(messages, config, store, cache, config.compressors)
       if (config.verbose && result.tokens_saved > 0) {
         console.log(`[headroom] compressed ${result.tokens_saved} tokens via: ${result.strategies.join(", ")}`)
       }
@@ -49,7 +50,7 @@ export const server: Plugin = async (_input, options) => {
       const tokenCount = await countTokensSafe(text)
       const minTokens = config.min_tokens_to_compress ?? 200
       if (tokenCount < minTokens) return
-      const result = await compressBlock(text, store, cache)
+      const result = await compressBlock(text, store, cache, config.compressors)
       if (!result) return
       if (result.tokensAfter >= tokenCount) return
       output.output = result.compressed
