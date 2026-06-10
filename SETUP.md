@@ -40,17 +40,17 @@ Then add the absolute path to your opencode config:
 
 The path must be **absolute** (starting with `/` on macOS/Linux). Relative paths are resolved against opencode's working directory and may fail silently if the CWD changes.
 
-### Option B — npm (once published)
+### Option B — npm
 
 ```bash
-bun add opencode-headroom
+bun add @ngotrnghia1811/opencode-headroom
 ```
 
 Config:
 
 ```json
 {
-  "plugin": ["opencode-headroom"]
+  "plugin": ["@ngotrnghia1811/opencode-headroom"]
 }
 ```
 
@@ -63,23 +63,26 @@ Both installation methods support passing configuration inline:
 ```json
 {
   "plugin": [
-    ["/path/to/opencode-headroom", {
+    ["@ngotrnghia1811/opencode-headroom", {
       "enabled": true,
       "min_tokens_to_compress": 200,
       "live_zone_only": true,
       "real_time": true,
       "cache_align": true,
       "verbose": false,
-      "ccr_db_path": "~/.local/share/opencode/headroom-ccr.db"
+      "ccr_db_path": "~/.local/share/opencode/headroom.db"
     }]
   ]
 }
 ```
 
-When using npm, replace the path with the package name:
+**About `ccr_db_path`**: `~/.local/share/opencode/` is the **global** opencode data directory (default XDG_DATA_HOME). If your setup uses a custom workspace wrapper that overrides XDG paths (e.g. `XDG_DATA_HOME` points into a workspace-specific directory), use that workspace's data directory instead — for example:
+
 ```json
-{ "plugin": [["opencode-headroom", { "verbose": true }]] }
+"ccr_db_path": "/path/to/project/.opencode-workspace/data/opencode/headroom.db"
 ```
+
+The CCR database should live alongside opencode's own session DBs. If unsure, omit `ccr_db_path` — the plugin uses an in-memory store by default (works fine unless sessions exceed 5 minutes between turns).
 
 ---
 

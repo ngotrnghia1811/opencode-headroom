@@ -81,7 +81,7 @@ Local path in config:
       "real_time": true,
       "cache_align": true,
       "verbose": false,
-      "ccr_db_path": "~/.local/share/opencode/headroom.db"
+      "ccr_db_path": "/Users/nghiango-mbp/opencode-learn/.opencode-workspace/data/opencode/headroom.db"
     }]
   ]
 }
@@ -96,7 +96,7 @@ If you use a custom XDG-workspace wrapper (like `./opencode-local.sh` in this re
 ```
 
 1. Install the plugin via npm or clone locally
-2. Add `"opencode-headroom"` to the `"plugin"` array in that config file
+2. Add `"@ngotrnghia1811/opencode-headroom"` to the `"plugin"` array in that config file
 3. Restart opencode — the plugin loads automatically
 
 **Example** — add to an existing `plugin` array:
@@ -106,12 +106,18 @@ If you use a custom XDG-workspace wrapper (like `./opencode-local.sh` in this re
   "plugin": [
     "opencode-claude-auth@latest",
     "@tarquinen/opencode-dcp@latest",
-    "@ngotrnghia1811/opencode-headroom"           // ← add this line
+    "@ngotrnghia1811/opencode-headroom"   // ← add this line
   ]
 }
 ```
 
-When running via `./opencode-local.sh`, the wrapper points `XDG_CONFIG_HOME` at `.opencode-workspace/config/`, so that's where opencode reads its config.
+When running via `./opencode-local.sh`, the wrapper points `XDG_DATA_HOME` at `.opencode-workspace/data/`, so the CCR database belongs **inside the workspace** — not the global opencode dir. The canonical path is:
+
+```
+$PROJECT_ROOT/.opencode-workspace/data/opencode/headroom.db
+```
+
+Why not `~/.local/share/opencode/headroom.db`? That's the **global** opencode data dir (used when you run opencode normally). The wrapper overrides it so sessions, auth, and plugin state stay isolated to this workspace.
 
 For the full setup guide (verification steps, config reference, CCR lifecycle, troubleshooting), see [SETUP.md](SETUP.md).
 
