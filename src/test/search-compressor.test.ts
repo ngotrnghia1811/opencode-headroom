@@ -79,4 +79,53 @@ D:\\Projects\\src\\main.ts:20:baz()
     const result = compressSearch("This is just some plain text\nNo file:line:match patterns\n")
     expect(result).toBe("This is just some plain text\nNo file:line:match patterns\n")
   })
+
+  test("parses ripgrep output with context lines (dash separator)", () => {
+    const content = `src/main.rs:10:fn main() {
+src/main.rs-9-use std::io;
+src/main.rs-8-
+src/main.rs:15:    println!("hello");
+src/main.rs-14-    // setup
+src/main.rs:42:    let x = compute();
+src/main.rs-41-    // after setup
+`
+    const result = compressSearch(content, { max_matches_per_file: 10, max_files: 20, max_total_matches: 100 })
+    // All 3 match lines (:) should appear; context lines (-) may be dropped
+    expect(result).toContain("src/main.rs:10:")
+    expect(result).toContain("src/main.rs:15:")
+    expect(result).toContain("src/main.rs:42:")
+    // Match lines must be present; context lines optional but the parser must not crash
+    const lines = result.split("\n")
+    const matchLines = lines.filter((l) => /:\d+:/.test(l))
+    expect(matchLines.length).toBe(3)
+  })
+
+  test("relevance-scored middle selection prefers error lines", () => {
+    const lines: string[] = []
+    // 15 info lines
+    for (let i = 0; i < 15; i++) {
+      lines.push(`src/main.ts:${i * 2 + 10}:INFO processing item ${i}`)
+    }
+    // 5 error lines scattered through middle positions
+    lines.push("src/main.ts:20:ERROR database connection failed")
+    lines.push("src/main.ts:25:ERROR null pointer exception")
+    lines.push("src/main.ts:30:ERROR timeout exceeded")
+    lines.push("src/main.ts:35:ERROR fatal disk full")
+    lines.push("src/main.ts:40:ERROR panic in worker thread")
+    const content = lines.join("\n")
+
+    const result = compressSearch(content, {
+      max_matches_per_file: 10,
+      max_files: 20,
+      max_total_matches: 8,
+      keep_first_match: true,
+      keep_last_match: true,
+    })
+
+    // With 8 slots, first and last take 2, leaving 6 for middle.
+    // Error lines should be preferred over info lines.
+    const errorMatches = (result.match(/ERROR/g) || []).length
+    // At least 3 of the 5 error lines should appear
+    expect(errorMatches).toBeGreaterThanOrEqual(3)
+  })
 })

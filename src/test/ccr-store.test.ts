@@ -1,7 +1,7 @@
 import { describe, test, expect, afterAll } from "bun:test"
 import { unlinkSync } from "node:fs"
 import { CcrStore } from "../ccr/store"
-import { deriveKey, extractCcrHashes, ccrMarker } from "../ccr/hash"
+import { deriveKey, extractCcrHashes, ccrMarker, HASH_ALGORITHM } from "../ccr/hash"
 
 describe("CcrStore", () => {
   test("put + get round-trip", () => {
@@ -94,6 +94,23 @@ and another <<ccr:xyz9876543210abcdef123456>> end`
   test("ccrMarker produces correct format", () => {
     const result = ccrMarker("abcdef1234567890abcdef12")
     expect(result).toBe("<<ccr:abcdef1234567890abcdef12>>")
+  })
+
+  test("HASH_ALGORITHM is sha256 and markers round-trip correctly", () => {
+    expect(HASH_ALGORITHM).toBe("sha256")
+
+    const payload = "some log content\nwith multiple lines\n"
+    const hash = deriveKey(payload)
+    const marker = ccrMarker(hash)
+
+    // Marker format
+    expect(marker).toStartWith("<<ccr:")
+    expect(marker).toEndWith(">>")
+
+    // Extract round-trip
+    const text = `prefix text ${marker} suffix text`
+    const extracted = extractCcrHashes(text)
+    expect(extracted).toEqual([hash])
   })
 })
 

@@ -19,9 +19,9 @@ import type { CcrStore } from "../ccr/store"
 
 // ─── Module-level regex ────────────────────────────────────────────
 
-// Match file:line:content or file:line: content
-// Must handle Windows paths like C:\Users\foo\bar.ts:42:content
-const GREP_LINE_RE = /^(.+?):(\d+?):(.*)$/
+// Match file:line:content or file-line-content (ripgrep context uses - separator)
+// \2 backreference ensures separator before/after line number matches (:42: or -41-)
+const GREP_LINE_RE = /^(.+?)([:-])(\d+)\2(.*)$/
 
 // ─── Public API ────────────────────────────────────────────────────
 
@@ -59,6 +59,7 @@ interface Match {
   line: number
   content: string
   raw: string
+  context_type: "match" | "context"
 }
 
 function parseSearchLines(lines: string[]): Record<string, Match[]> {
@@ -81,16 +82,35 @@ function parseSearchLines(lines: string[]): Record<string, Match[]> {
     if (!match) continue
 
     const file = (skipPrefix > 0 ? line.slice(0, 2) : "") + match[1]
-    const lineNum = parseInt(match[2], 10)
-    const content = match[3]
+    const separator = match[2]
+    const lineNum = parseInt(match[3], 10)
+    const content = match[4]
+    const context_type: "match" | "context" = separator === "-" ? "context" : "match"
 
     if (isNaN(lineNum)) continue
 
     if (!matches[file]) matches[file] = []
-    matches[file].push({ file, line: lineNum, content, raw: line })
+    matches[file].push({ file, line: lineNum, content, raw: line, context_type })
   }
 
   return matches
+}
+
+// ─── Relevance Scoring ─────────────────────────────────────────────
+
+function scoreMatch(line: string, context?: string): number {
+  let score = 0.5 // baseline
+  // Error/warning pattern boosts
+  if (/\b(error|err|fail|exception|panic|fatal)\b/i.test(line)) score += 0.5
+  if (/\b(warn|warning)\b/i.test(line)) score += 0.4
+  // Context word overlap (if context provided)
+  if (context) {
+    const ctxTokens = context.toLowerCase().split(/\W+/).filter((t) => t.length > 3)
+    const lineTokens = line.toLowerCase().split(/\W+/)
+    const overlap = ctxTokens.filter((t) => lineTokens.includes(t)).length
+    score += Math.min(0.3, overlap * 0.1)
+  }
+  return Math.min(1.0, score)
 }
 
 // ─── Selection ─────────────────────────────────────────────────────
@@ -127,11 +147,19 @@ function selectMatches(
       }
     }
 
-    // Fill remaining slots from middle (evenly sampled)
+    // Fill remaining slots from middle (prefer match lines, then relevance-scored)
     if (remaining > 0 && sorted.length > 2) {
       const middle = sorted.slice(1, sorted.length - 1)
-      const step = Math.max(1, Math.floor(middle.length / Math.max(1, remaining)))
-      for (let i = 0; i < middle.length && remaining > 0; i += step) {
+      middle.sort((a, b) => {
+        if (a.context_type !== b.context_type) {
+          return a.context_type === "match" ? -1 : 1
+        }
+        // Higher relevance first
+        const scoreA = scoreMatch(a.content + a.raw)
+        const scoreB = scoreMatch(b.content + b.raw)
+        return scoreB - scoreA
+      })
+      for (let i = 0; i < middle.length && remaining > 0; i++) {
         if (!fileSelected.includes(middle[i])) {
           fileSelected.push(middle[i])
           remaining--

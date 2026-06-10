@@ -1,5 +1,6 @@
 import { deriveKey } from "../ccr/hash"
 import type { CcrStore } from "../ccr/store"
+import { computeOptimalK } from "./kneedle"
 
 export interface LogCompressorConfig {
   max_errors: number
@@ -146,8 +147,20 @@ function parseLogLines(lines: string[]): LogLine[] {
     if (inStackTrace) {
       ll.isStackTrace = true
       stackTraceLines++
-      if (stackTraceLines > 20 || !line.trim()) {
+      if (stackTraceLines > 20) {
         inStackTrace = false
+      } else if (!line.trim()) {
+        // Blank line — peek ahead to see if next non-blank line continues the trace
+        const nextNonBlank = lines.slice(i + 1).find((l) => l.trim() !== "")
+        const continuesTrace =
+          nextNonBlank &&
+          (/^\s+at\s/.test(nextNonBlank) || // JS: at Module.func (file:line)
+            /^\s+File\s+"/.test(nextNonBlank) || // Python: File "path", line N
+            /^\s+\d+\s+/.test(nextNonBlank) || // line number context
+            /^Caused by:/i.test(nextNonBlank) ||
+            /^During handling of the above/i.test(nextNonBlank) ||
+            /^The above exception was/i.test(nextNonBlank))
+        if (!continuesTrace) inStackTrace = false
       }
     }
 
@@ -222,8 +235,9 @@ function selectLines(allLines: LogLine[], cfg: LogCompressorConfig): LogLine[] {
   // Sort by original index
   selected.sort((a, b) => a.index - b.index)
 
-  // Cap at max_total_lines via score
-  const adaptiveMax = Math.min(cfg.max_total_lines, Math.ceil(Math.sqrt(allLines.length)) + 20)
+  // Cap at max_total_lines via Kneedle adaptive K
+  const allLineStrings = allLines.map((l) => l.content)
+  const adaptiveMax = computeOptimalK(allLineStrings, 1.0, 10, cfg.max_total_lines)
   if (selected.length > adaptiveMax) {
     selected.sort((a, b) => b.score - a.score)
     const truncated = selected.slice(0, adaptiveMax)

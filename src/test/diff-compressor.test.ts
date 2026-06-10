@@ -107,4 +107,131 @@ index 123..456 100644
     const result = compressDiff("")
     expect(result).toBe("")
   })
+
+  test("parser extracts file count correctly", () => {
+    const content = `diff --git a/src/f1.ts b/src/f1.ts
+index 111..222 100644
+--- a/src/f1.ts
++++ b/src/f1.ts
+@@ -1,3 +1,4 @@
+  context
++new line in f1
+  context
+  context
+diff --git a/src/f2.ts b/src/f2.ts
+index 333..444 100644
+--- a/src/f2.ts
++++ b/src/f2.ts
+@@ -1,3 +1,4 @@
+  context
++new line in f2
+  context
+  context
+diff --git a/src/f3.ts b/src/f3.ts
+index 555..666 100644
+--- a/src/f3.ts
++++ b/src/f3.ts
+@@ -1,3 +1,4 @@
+  context
++new line in f3
+  context
+  context
+`
+    const result = compressDiff(content, { max_files: 10, max_hunks_per_file: 10 })
+    // All 3 files should appear
+    expect(result).toContain("diff --git a/src/f1.ts")
+    expect(result).toContain("diff --git a/src/f2.ts")
+    expect(result).toContain("diff --git a/src/f3.ts")
+    expect(result).toContain("new line in f1")
+    expect(result).toContain("new line in f2")
+    expect(result).toContain("new line in f3")
+  })
+
+  test("per-hunk context trimming respects max_context_lines", () => {
+    // Build a hunk with exactly 5 context lines before first change and 5 after last change
+    const lines: string[] = [
+      "diff --git a/foo.ts b/foo.ts",
+      "index 123..456 100644",
+      "--- a/foo.ts",
+      "+++ b/foo.ts",
+      "@@ -1,11 +1,11 @@",
+    ]
+    for (let i = 0; i < 5; i++) lines.push(" context before")
+    lines.push("+added line")
+    lines.push("-removed line")
+    for (let i = 0; i < 5; i++) lines.push(" context after")
+
+    const content = lines.join("\n")
+    const result = compressDiff(content, { max_context_lines: 2 })
+
+    // With max_context_lines=2, we keep only 2 context lines before change and 2 after.
+    // Check that "context lines dropped" marker appears
+    expect(result).toContain("context lines dropped")
+    // The add/del lines must still be present
+    expect(result).toContain("+added line")
+    expect(result).toContain("-removed line")
+  })
+
+  test("file cap respects max_files", () => {
+    // Generate 15-file diff
+    const fileBlocks: string[] = []
+    for (let f = 0; f < 15; f++) {
+      fileBlocks.push(`diff --git a/file${f}.ts b/file${f}.ts
+index ${f}00..${f}ff 100644
+--- a/file${f}.ts
++++ b/file${f}.ts
+@@ -1,3 +1,4 @@
+  context
++new line in file ${f}
+  context
+  context`)
+    }
+    const content = fileBlocks.join("\n")
+
+    const result = compressDiff(content, { max_files: 5, max_hunks_per_file: 10 })
+
+    // Count file headers in output
+    const fileHeaders = result.match(/^diff --git a\/file/gm)
+    const headerCount = fileHeaders ? fileHeaders.length : 0
+    expect(headerCount).toBeLessThanOrEqual(5)
+    // Should mention omitted files
+    expect(result).toContain("files omitted")
+  })
+
+  test("hunk selection by change density", () => {
+    // One file with 3 hunks: 1 change, 5 changes, 2 changes
+    const content = `diff --git a/src/main.ts b/src/main.ts
+index abc..def 100644
+--- a/src/main.ts
++++ b/src/main.ts
+@@ -1,3 +1,4 @@
+  context
++small change 1
+  context
+  context
+@@ -5,10 +6,15 @@
+  context
++big change 1
++big change 2
++big change 3
++big change 4
++big change 5
+  context
+  context
+@@ -15,5 +20,7 @@
+  context
++medium change 1
++medium change 2
+  context
+  context
+`
+    // max_hunks_per_file=1: only the hunk with most changes (5) should appear
+    const result = compressDiff(content, { max_hunks_per_file: 1, max_context_lines: 10 })
+
+    // The 5-change hunk should be present
+    expect(result).toContain("+big change 1")
+    expect(result).toContain("+big change 5")
+    // The 1-change and 2-change hunks should be omitted
+    expect(result).toContain("hunks omitted")
+  })
 })

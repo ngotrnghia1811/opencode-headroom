@@ -119,4 +119,55 @@ test_foo.py::test_three FAILED
     // Should have omission markers
     expect(result).toContain("lines omitted")
   })
+
+  test("chained Python exception preserves both tracebacks", () => {
+    const log = `2024-01-01 12:00:00 INFO Starting
+2024-01-01 12:00:01 ERROR First exception
+Traceback (most recent call last):
+  File "app.py", line 10, in outer
+    inner()
+  File "app.py", line 5, in inner
+    raise ValueError("initial failure")
+ValueError: initial failure
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "app.py", line 12, in <module>
+    outer()
+  File "app.py", line 8, in outer
+    raise RuntimeError("secondary failure")
+RuntimeError: secondary failure
+2024-01-01 12:00:02 INFO Done
+`
+    const result = compressLog(log, { max_total_lines: 100 })
+    expect(result).toContain("ValueError: initial failure")
+    expect(result).toContain("RuntimeError: secondary failure")
+    expect(result).toContain("During handling of the above")
+  })
+
+  test("large repetitive log reduces aggressively via Kneedle", () => {
+    // Build 200-line log: 180 identical info lines + some errors
+    const lines: string[] = []
+    for (let i = 0; i < 180; i++) {
+      lines.push("2024-01-01 12:00:00 INFO Processing item")
+    }
+    // Add unique content at end
+    lines.push("2024-01-01 12:00:01 ERROR Unique error A")
+    lines.push("2024-01-01 12:00:02 ERROR Unique error B")
+    lines.push("2024-01-01 12:00:03 WARN Something different")
+    for (let i = 0; i < 17; i++) {
+      lines.push("2024-01-01 12:00:04 INFO More processing")
+    }
+    const log = lines.join("\n")
+
+    const result = compressLog(log, { max_total_lines: 30 })
+    const resultLines = result.split("\n")
+    // Kneedle should detect high redundancy → aggressive compression
+    // Output should be well under max_total_lines when many lines are identical
+    expect(resultLines.length).toBeLessThanOrEqual(45)
+    // Should preserve the unique error/warn lines
+    expect(result).toContain("Unique error A")
+    expect(result).toContain("Unique error B")
+  })
 })

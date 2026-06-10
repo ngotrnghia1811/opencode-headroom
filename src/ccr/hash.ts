@@ -1,3 +1,8 @@
+// NOTE: headroom v0.24.0 uses BLAKE3 (Rust) or MD5 (Python) for key derivation.
+// This port uses SHA-256. CCR markers from this plugin are not cross-compatible
+// with headroom's CCR store.
+export const HASH_ALGORITHM = "sha256" as const
+
 import { createHash } from "node:crypto"
 
 export function deriveKey(payload: string): string {
