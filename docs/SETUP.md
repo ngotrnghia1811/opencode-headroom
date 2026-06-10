@@ -242,6 +242,87 @@ The ContentDetector classifies each text block into one of seven content types a
 | **DiffCompressor** | Unified git diffs | Structured parser: files → hunks → lines. Keeps file headers, hunk markers, all `+`/`-` lines, and `max_context_lines` (3) of context around changes. Caps hunks/file (10) and files (10). Drops context-only lines. | Condensed diff with `[... 15 context lines dropped]` markers |
 | **CacheAligner** | System prompt (every call) | Regex-based normalization: UUID → `<<UUID>>`, ISO 8601 → `<<TIMESTAMP>>`, hex session IDs → `<<SESSION_ID>>`. Order: UUIDs first, then timestamps, dates, session IDs. | System prompt with stable placeholder tokens |
 
+### Compressor Parameters
+
+#### SmartCrusher (JSON arrays)
+
+| Parameter | Default | Description |
+|---|---|---|
+| `smart_crusher` (toggle) | `true` | Master on/off for JSON array compression |
+| `min_items_to_analyze` | 10 | Arrays shorter than this pass through uncompressed |
+| `max_items` | 30 | Maximum items in compressed output (K cap) |
+| `first_fraction` | 0.3 | Fraction of K reserved for the first items |
+| `last_fraction` | 0.15 | Fraction of K reserved for the last items |
+| `max_files` | 10 | Maximum files preserved in output |
+
+#### LogCompressor (build / test / lint)
+
+| Parameter | Default | Description |
+|---|---|---|
+| `log` (toggle) | `true` | Master on/off for log compression |
+| `max_errors` | 10 | Maximum error/fail lines to keep |
+| `error_context_lines` | 3 | Context lines kept around each error |
+| `max_stack_traces` | 3 | Maximum stack trace blocks to keep |
+| `stack_trace_max_lines` | 20 | Max lines per stack trace block |
+| `max_warnings` | 5 | Maximum warnings after deduplication |
+| `max_total_lines` | 100 | Hard cap on total selected output lines |
+
+#### SearchCompressor (grep / ripgrep)
+
+| Parameter | Default | Description |
+|---|---|---|
+| `search` (toggle) | `true` | Master on/off for search result compression |
+| `max_matches_per_file` | 5 | Maximum matches shown per file |
+| `max_files` | 20 | Maximum files included in output |
+| `max_total_matches` | 100 | Global cap on total selected matches |
+
+#### DiffCompressor (git diffs)
+
+| Parameter | Default | Description |
+|---|---|---|
+| `diff` (toggle) | `true` | Master on/off for diff compression |
+| `max_context_lines` | 3 | Max unchanged context lines kept around each change |
+| `max_hunks_per_file` | 10 | Maximum hunks preserved per file |
+| `max_files` | 10 | Maximum files preserved in output |
+
+#### KompressCompressor (prose / text)
+
+| Parameter | Default | Description |
+|---|---|---|
+| `kompress` (toggle) | `true` | Master on/off for ML prose compression |
+| `score_threshold` | 0.5 | Words with score above this are kept |
+| `chunk_words` | 350 | Words per processing chunk |
+| `target_ratio` | *(unset)* | Alternative: keep top-K% words by score |
+
+#### CacheAligner (system prompt normalization)
+
+| Parameter | Default | Description |
+|---|---|---|
+| `cache_align` (toggle) | `true` | Master on/off for system prompt normalization |
+| *(no per-pattern config)* | — | UUIDs, timestamps, dates, and session IDs are always normalized when cache_align is on |
+
+#### ContentDetector (type classification)
+
+| Parameter | Default | Description |
+|---|---|---|
+| `search_sample_lines` | 100 | Lines scanned for search result detection |
+| `log_sample_lines` | 200 | Lines scanned for log pattern detection |
+| `code_sample_lines` | 100 | Lines scanned for source code detection |
+| `html_sample_chars` | 3000 | Chars scanned for HTML detection |
+| `prose_min_sentences` | 2 | Minimum sentences for prose classification |
+
+#### CCR Store
+
+| Parameter | Default | Description |
+|---|---|---|
+| `ccr_db_path` | `:memory:` | SQLite file path for persistent CCR storage |
+| `capacity` | 1000 | Max entries before eviction |
+| `ttl_seconds` | 300 | Entry expiry (5 minutes) |
+
+#### Kneedle (adaptive sizing — used by SmartCrusher and LogCompressor)
+
+The Kneedle algorithm requires no user-facing configuration. It auto-adapts based on content diversity using SimHash fingerprinting, bigram coverage curves, knee detection, and zlib validation. The only tunable is `bias` (default 1.0), available through `computeOptimalK(bias)` in code.
+
 ### ContentDetector cascade
 
 Detection runs in priority order — more distinctive formats checked first:

@@ -29,13 +29,13 @@ tool output (10 000 tokens)
 
 ## Compression components
 
-| Compressor | Triggers on | Technique |
-|---|---|---|
-| **SmartCrusher** | JSON arrays | Adaptive K via Kneedle algorithm + BM25 relevance scoring; keeps first/last anchors |
-| **LogCompressor** | Build / test output | Deduplication, keep errors/warnings/first/last lines |
-| **SearchCompressor** | grep / ripgrep output | Per-file collapse, relevance-scored middle lines |
-| **DiffCompressor** | Unified git diffs | Structured parser: keeps headers + change lines, caps files/hunks by change density |
-| **CacheAligner** | System prompt (every LLM call) | Normalizes UUIDs / timestamps / session IDs to stabilize KV cache prefix |
+| Compressor | Triggers on | Technique | Parameters |
+|---|---|---|---|---|
+| **SmartCrusher** | JSON arrays | Adaptive K via Kneedle algorithm + BM25 relevance scoring; keeps first/last anchors | 6 thresholds / caps |
+| **LogCompressor** | Build / test output | Deduplication, keep errors/warnings/first/last lines | 7 thresholds |
+| **SearchCompressor** | grep / ripgrep output | Per-file collapse, relevance-scored middle lines | 4 thresholds / caps |
+| **DiffCompressor** | Unified git diffs | Structured parser: keeps headers + change lines, caps files/hunks by change density | 4 thresholds / caps |
+| **CacheAligner** | System prompt (every LLM call) | Normalizes UUIDs / timestamps / session IDs to stabilize KV cache prefix | 1 toggle |
 
 ---
 
