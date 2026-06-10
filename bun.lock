@@ -5,16 +5,18 @@
     "": {
       "name": "opencode-headroom",
       "dependencies": {
+        "@ngotrnghia1811/opencode-headroom": "^0.1.1",
         "js-tiktoken": "^1.0.19",
-        "onnxruntime-node": "^1.26.0",
       },
       "devDependencies": {
         "@types/bun": "latest",
+      },
+      "optionalDependencies": {
         "@xenova/transformers": ">=2.0.0",
+        "onnxruntime-node": "^1.26.0",
       },
       "peerDependencies": {
         "@opencode-ai/plugin": "*",
-        "@xenova/transformers": ">=2.0.0",
       },
     },
   },
@@ -32,6 +34,8 @@
     "@msgpackr-extract/msgpackr-extract-linux-x64": ["@msgpackr-extract/msgpackr-extract-linux-x64@3.0.4", "", { "os": "linux", "cpu": "x64" }, "sha512-8TNXMEjJc3QEy7R/x1INhgiU+XakDAFUzBhaz7+Rbrs8NH5UQeHQxxmzsSBJGyV6I1jW79undiQm8tOI+D+8FQ=="],
 
     "@msgpackr-extract/msgpackr-extract-win32-x64": ["@msgpackr-extract/msgpackr-extract-win32-x64@3.0.4", "", { "os": "win32", "cpu": "x64" }, "sha512-CmCXPQrkbwExx3j946/PtHWHbYJiCRBRDl4BlkRQcJB/YOwQxJRTpoo7aTsortjgoJ1x7opzTSxn7C+ASSLVjQ=="],
+
+    "@ngotrnghia1811/opencode-headroom": ["@ngotrnghia1811/opencode-headroom@0.1.1", "", { "dependencies": { "js-tiktoken": "^1.0.19", "onnxruntime-node": "^1.26.0" }, "peerDependencies": { "@opencode-ai/plugin": "*", "@xenova/transformers": ">=2.0.0" } }, "sha512-BtGbjJz+LCG+ElmYn9MYPVZJ0ZZF4J57ofSHjllSsQVundZttdAjtSg+kpVXhT23Re4Fy1U3uYBBfh6wZqRVGg=="],
 
     "@opencode-ai/plugin": ["@opencode-ai/plugin@1.17.0", "", { "dependencies": { "@opencode-ai/sdk": "1.17.0", "effect": "4.0.0-beta.74", "zod": "4.1.8" }, "peerDependencies": { "@opentui/core": ">=0.3.4", "@opentui/keymap": ">=0.3.4", "@opentui/solid": ">=0.3.4" }, "optionalPeers": ["@opentui/core", "@opentui/keymap", "@opentui/solid"] }, "sha512-YiS6lTCMJ00CiJ9x31RnntkEPYgkDU+uL5bGkUgsJoUGUrxrwYNLvEKl5/UaslWuMP/nlRSZyV/6ZR+G71LCjA=="],
 

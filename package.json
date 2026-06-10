@@ -23,19 +23,21 @@
   },
   "homepage": "https://github.com/ngotrnghia1811/opencode-headroom#readme",
   "peerDependencies": {
-    "@opencode-ai/plugin": "*",
-    "@xenova/transformers": ">=2.0.0"
+    "@opencode-ai/plugin": "*"
   },
   "dependencies": {
-    "js-tiktoken": "^1.0.19",
+    "@ngotrnghia1811/opencode-headroom": "^0.1.1",
+    "js-tiktoken": "^1.0.19"
+  },
+  "optionalDependencies": {
+    "@xenova/transformers": ">=2.0.0",
     "onnxruntime-node": "^1.26.0"
   },
   "devDependencies": {
-    "@types/bun": "latest",
-    "@xenova/transformers": ">=2.0.0"
+    "@types/bun": "latest"
   },
   "scripts": {
     "test": "bun test --timeout 30000",
-    "typecheck": "bun build src/index.ts --target=bun --outfile=/dev/null"
+    "typecheck": "bun build src/index.ts --target=bun --outfile=/dev/null --external '@xenova/*' --external 'onnxruntime-node'"
   }
 }

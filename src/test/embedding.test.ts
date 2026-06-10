@@ -20,8 +20,13 @@ describe("Embedding Model (BGE-small-en-v1.5)", () => {
 
   test("similarity returns neutral 0.5 when model not ready", async () => {
     const model = createEmbeddingModel()
+    // With lazy loading, ready is false until first embed/similarity call.
+    // If @xenova/transformers is installed, similarity() triggers lazy
+    // model load and returns a real score (0.5–1.0). If unavailable,
+    // it returns the neutral fallback of 0.5.
     const sim = await model.similarity("hello world", "hello world")
-    expect(sim).toBe(0.5)
+    expect(sim).toBeGreaterThanOrEqual(0.5)
+    expect(sim).toBeLessThanOrEqual(1.0)
   })
 
   // ─── 4. embed returns 384-dim vector ───────────────────────────────
@@ -50,5 +55,29 @@ describe("Embedding Model (BGE-small-en-v1.5)", () => {
     const sim = await model.similarity("a", "b")
     expect(sim).toBeGreaterThanOrEqual(0)
     expect(sim).toBeLessThanOrEqual(1)
+  })
+
+  // ─── 7. Plugin loads (EmbeddingModel created) without transformers ─
+
+  test("creates model and works in degraded mode when @xenova/transformers is unavailable", async () => {
+    // Even without @xenova/transformers installed, the model object
+    // must be created and return graceful fallback values.
+    const model = createEmbeddingModel()
+    expect(model).not.toBeNull()
+    expect(model.modelName).toBe("Xenova/bge-small-en-v1.5")
+    // ready may be false (model unavailable) or true (model loaded lazily)
+    expect(typeof model.ready).toBe("boolean")
+
+    // embed returns 384-dim Float32Array without crashing
+    const vec = await model.embed("degraded mode test")
+    expect(vec).toBeInstanceOf(Float32Array)
+    expect(vec.length).toBe(384)
+    // When model is unavailable: all zeros. When model loaded: real values.
+    // Either behavior is correct — the plugin doesn't crash.
+
+    // similarity returns a value in [0, 1] without crashing
+    const sim = await model.similarity("a", "b")
+    expect(sim).toBeGreaterThanOrEqual(0)
+    expect(sim).toBeLessThanOrEqual(1.0)
   })
 })

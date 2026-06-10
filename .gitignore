@@ -33,3 +33,4 @@ bun.lock.hash
 
 # generated
 *.generated.*
+package-lock.json

@@ -3,8 +3,8 @@
 // Model: chopratejas/kompress-base (ModernBERT + dual-head ONNX)
 // Tokenizer: answerdotai/ModernBERT-base
 //
-// Requires: onnxruntime-node (already in dependencies)
-//           @xenova/transformers (peer/dev dependency — AutoTokenizer)
+// Requires: onnxruntime-node (optionalDependency — ML features degrade gracefully)
+//           @xenova/transformers (optionalDependency — AutoTokenizer)
 
 import type { CcrStore } from "../ccr/store"
 import { deriveKey } from "../ccr/hash"
@@ -34,7 +34,8 @@ export interface KompressResult {
 
 // ─── Model cache (singleton, per-process) ────────────────────────────
 
-let _cache: { model: KompressModel; tokenizer: KompressTokenizer } | null = null
+let _cache: { model: KompressModel; tokenizer: KompressTokenizer } | null | undefined = undefined
+// undefined = not tried, null = tried and failed, object = cached success
 
 interface KompressModel {
   get_scores(input_ids: number[][], attention_mask: number[][]): Promise<number[][]>
@@ -58,63 +59,68 @@ interface TokenizerEncoding {
   word_ids(): (number | null)[]
 }
 
-async function _loadModel(config: KompressConfig): Promise<{ model: KompressModel; tokenizer: KompressTokenizer }> {
-  if (_cache) return _cache
+async function _loadModel(config: KompressConfig): Promise<{ model: KompressModel; tokenizer: KompressTokenizer } | null> {
+  if (_cache !== undefined) return _cache
 
-  const ort = require("onnxruntime-node")
-  const { AutoTokenizer } = await import("@xenova/transformers")
+  try {
+    const ort = await import("onnxruntime-node")
+    const { AutoTokenizer } = await import("@xenova/transformers")
 
-  const cacheDir = `${Bun.env.HOME || "/tmp"}/.cache/opencode-headroom/kompress/`
-  await Bun.$`mkdir -p ${cacheDir}`.quiet()
+    const cacheDir = `${Bun.env.HOME || "/tmp"}/.cache/opencode-headroom/kompress/`
+    await Bun.$`mkdir -p ${cacheDir}`.quiet()
 
-  // Download ONNX model
-  const onnxUrl = `${HF_DOWNLOAD_BASE}/${config.model_id || HF_MODEL_REPO}/resolve/main/${HF_ONNX_FILE}`
-  const onnxPath = `${cacheDir}kompress-int8.onnx`
+    // Download ONNX model
+    const onnxUrl = `${HF_DOWNLOAD_BASE}/${config.model_id || HF_MODEL_REPO}/resolve/main/${HF_ONNX_FILE}`
+    const onnxPath = `${cacheDir}kompress-int8.onnx`
 
-  const onnxFile = Bun.file(onnxPath)
-  if (!(await onnxFile.exists())) {
-    const response = await fetch(onnxUrl)
-    if (!response.ok) throw new Error(`Failed to download ONNX model: ${response.status} ${response.statusText}`)
-    await Bun.write(onnxPath, response)
+    const onnxFile = Bun.file(onnxPath)
+    if (!(await onnxFile.exists())) {
+      const response = await fetch(onnxUrl)
+      if (!response.ok) throw new Error(`Failed to download ONNX model: ${response.status} ${response.statusText}`)
+      await Bun.write(onnxPath, response)
+    }
+
+    // Create ONNX inference session (CPU only — matching headroom's ONNX path)
+    const session = await ort.InferenceSession.create(onnxPath, {
+      executionProviders: ["cpu"],
+      graphOptimizationLevel: "all",
+    })
+
+    const model: KompressModel = {
+      async get_scores(input_ids: number[][], attention_mask: number[][]): Promise<number[][]> {
+        const batchSize = input_ids.length
+        const seqLen = input_ids[0].length
+        const flatIds = input_ids.flat().map(BigInt)
+        const flatMask = attention_mask.flat().map(BigInt)
+
+        const feeds = {
+          input_ids: new ort.Tensor("int64", BigInt64Array.from(flatIds), [batchSize, seqLen]),
+          attention_mask: new ort.Tensor("int64", BigInt64Array.from(flatMask), [batchSize, seqLen]),
+        }
+        const results = await session.run(feeds)
+        const scores = results.final_scores.data as Float32Array
+
+        const out: number[][] = []
+        for (let b = 0; b < batchSize; b++) {
+          out.push(Array.from(scores.slice(b * seqLen, (b + 1) * seqLen)))
+        }
+        return out
+      },
+
+      async get_keep_mask(input_ids: number[][], attention_mask: number[][]): Promise<boolean[][]> {
+        const scores = await this.get_scores(input_ids, attention_mask)
+        return scores.map(row => row.map(s => s > 0.5))
+      },
+    }
+
+    const tokenizer = await AutoTokenizer.from_pretrained(HF_TOKENIZER_REPO) as unknown as KompressTokenizer
+
+    _cache = { model, tokenizer }
+    return _cache
+  } catch {
+    _cache = null
+    return null
   }
-
-  // Create ONNX inference session (CPU only — matching headroom's ONNX path)
-  const session = await ort.InferenceSession.create(onnxPath, {
-    executionProviders: ["cpu"],
-    graphOptimizationLevel: "all",
-  })
-
-  const model: KompressModel = {
-    async get_scores(input_ids: number[][], attention_mask: number[][]): Promise<number[][]> {
-      const batchSize = input_ids.length
-      const seqLen = input_ids[0].length
-      const flatIds = input_ids.flat().map(BigInt)
-      const flatMask = attention_mask.flat().map(BigInt)
-
-      const feeds = {
-        input_ids: new ort.Tensor("int64", BigInt64Array.from(flatIds), [batchSize, seqLen]),
-        attention_mask: new ort.Tensor("int64", BigInt64Array.from(flatMask), [batchSize, seqLen]),
-      }
-      const results = await session.run(feeds)
-      const scores = results.final_scores.data as Float32Array
-
-      const out: number[][] = []
-      for (let b = 0; b < batchSize; b++) {
-        out.push(Array.from(scores.slice(b * seqLen, (b + 1) * seqLen)))
-      }
-      return out
-    },
-
-    async get_keep_mask(input_ids: number[][], attention_mask: number[][]): Promise<boolean[][]> {
-      const scores = await this.get_scores(input_ids, attention_mask)
-      return scores.map(row => row.map(s => s > 0.5))
-    },
-  }
-
-  const tokenizer = await AutoTokenizer.from_pretrained(HF_TOKENIZER_REPO) as unknown as KompressTokenizer
-
-  _cache = { model, tokenizer }
-  return _cache
 }
 
 // ─── compressText — main entry point ─────────────────────────────────
@@ -139,8 +145,10 @@ export async function compressText(
   if (n_words < 10) return null
 
   try {
-    const { model, tokenizer } = await _loadModel(cfg)
+    const loaded = await _loadModel(cfg)
+    if (!loaded) return null  // ML deps unavailable — degrade gracefully
 
+    const { model, tokenizer } = loaded
     const kept_ids = new Set<number>()
     const max_chunk_words = cfg.chunk_words
 
