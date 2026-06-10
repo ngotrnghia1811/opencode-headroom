@@ -8,14 +8,18 @@ import { createStatsTool, createSessionStats, recordCompression } from "./tool/s
 import type { SessionStats } from "./tool/stats"
 import { countTokensSafe } from "./util/tokens"
 
+function defaultCcrDbPath(): string | undefined {
+  const dataHome = process.env.XDG_DATA_HOME
+  if (!dataHome) return undefined
+  return `${dataHome}/opencode/headroom.db`
+}
+
 export const server: Plugin = async (_input, options) => {
   const config = parseOptions(options)
 
   if (!config.enabled) return {}
 
-  const storeConfig: { dbPath?: string } = {}
-  if (config.ccr_db_path) storeConfig.dbPath = config.ccr_db_path
-  const store = new CcrStore(storeConfig)
+  const store = new CcrStore({ dbPath: config.ccr_db_path ?? defaultCcrDbPath() })
 
   const sessionStats: SessionStats = createSessionStats()
 
