@@ -1,6 +1,6 @@
 # opencode-headroom — Development Plan
 
-*Reference: /Users/nghiango-mbp/opencode-learn/_references/headroom (v0.24.0) | Last updated: 2026-06-09*
+*Reference: headroom v0.24.0 | Last updated: 2026-06-10*
 
 ---
 
