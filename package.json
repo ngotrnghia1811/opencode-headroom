@@ -1,11 +1,27 @@
 {
   "name": "opencode-headroom",
   "version": "0.1.0",
+  "description": "Context compression plugin for opencode — port of headroom with Kneedle adaptive-K, BM25 relevance scoring, and CCR reversibility",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
     "./server": "./src/index.ts"
   },
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "context-compression",
+    "token-reduction",
+    "llm",
+    "headroom"
+  ],
+  "author": "ngotrnghia1811",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ngotrnghia1811/opencode-headroom.git"
+  },
+  "homepage": "https://github.com/ngotrnghia1811/opencode-headroom#readme",
   "peerDependencies": {
     "@opencode-ai/plugin": "*"
   },
