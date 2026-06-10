@@ -6,6 +6,10 @@ Reduces token usage 60–95% on large tool outputs, logs, diffs, and search resu
 
 ## Quick start
 
+```bash
+npm install @ngotrnghia1811/opencode-headroom
+```
+
 ```json
 // opencode.json
 {

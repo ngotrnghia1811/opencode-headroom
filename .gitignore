@@ -9,6 +9,7 @@ node_modules/
 dist/
 build/
 *.tsbuildinfo
+*.tgz
 
 # OS / editor artifacts
 .DS_Store

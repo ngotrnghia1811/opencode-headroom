@@ -2,7 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/@ngotrnghia1811/opencode-headroom)](https://www.npmjs.com/package/@ngotrnghia1811/opencode-headroom)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-124%20passing-brightgreen)](src/test)
+[![Tests](https://img.shields.io/badge/tests-178%20passing-brightgreen)](src/test)
 
 Context compression plugin for [opencode](https://opencode.ai). Reduces token usage 60–95% on large tool outputs, logs, diffs, and search results — without losing the information the LLM needs.
 
