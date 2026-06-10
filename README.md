@@ -1,10 +1,238 @@
 # opencode-headroom
 
+[![npm](https://img.shields.io/npm/v/opencode-headroom)](https://www.npmjs.com/package/opencode-headroom)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-124%20passing-brightgreen)](src/test)
+
 Context compression plugin for [opencode](https://opencode.ai). Reduces token usage 60–95% on large tool outputs, logs, diffs, and search results — without losing the information the LLM needs.
 
 Port of [headroom v0.24.0](https://github.com/chopratejas/headroom) into the opencode plugin system.
 
 ---
+
+## What it does
+
+When opencode tools return large outputs (file reads, grep results, build logs, git diffs, JSON arrays), this plugin compresses them before they reach the LLM. The original content is cached locally so the LLM can retrieve it on demand via `headroom_retrieve`.
+
+```
+tool output (10 000 tokens)
+  │
+  ├─ ContentDetector: "this is a build log"
+  ├─ LogCompressor: keep errors + first/last lines, deduplicate repeats
+  │    → 800 tokens + <<ccr:2519ab63b8962b3998425b08>> marker
+  │
+  └─ LLM sees 800 tokens instead of 10 000
+       If LLM needs more: headroom_retrieve("2519ab63b8962b3998425b08") → full log
+```
+
+---
+
+## Compression components
+
+| Compressor | Triggers on | Technique |
+|---|---|---|
+| **SmartCrusher** | JSON arrays | Adaptive K via Kneedle algorithm + BM25 relevance scoring; keeps first/last anchors |
+| **LogCompressor** | Build / test output | Deduplication, keep errors/warnings/first/last lines |
+| **SearchCompressor** | grep / ripgrep output | Per-file collapse, relevance-scored middle lines |
+| **DiffCompressor** | Unified git diffs | Structured parser: keeps headers + change lines, caps files/hunks by change density |
+| **CacheAligner** | System prompt (every LLM call) | Normalizes UUIDs / timestamps / session IDs to stabilize KV cache prefix |
+
+---
+
+## Installation
+
+### npm (recommended)
+
+```bash
+npm install opencode-headroom
+# or
+bun add opencode-headroom
+```
+
+Add to your opencode config:
+
+```json
+// opencode.json  or  .opencode/opencode.json
+{
+  "plugin": ["opencode-headroom"]
+}
+```
+
+### Local path (development)
+
+```bash
+git clone https://github.com/ngotrnghia1811/opencode-headroom.git
+cd opencode-headroom && bun install
+```
+
+Add to your opencode config:
+
+```json
+{
+  "plugin": ["/absolute/path/to/opencode-headroom"]
+}
+```
+
+### With options
+
+```json
+{
+  "plugin": [
+    ["opencode-headroom", {
+      "enabled": true,
+      "min_tokens_to_compress": 200,
+      "live_zone_only": true,
+      "real_time": true,
+      "cache_align": true,
+      "verbose": false,
+      "ccr_db_path": "~/.local/share/opencode/headroom.db"
+    }]
+  ]
+}
+```
+
+For the full setup guide (verification steps, config reference, CCR lifecycle, troubleshooting), see [SETUP.md](SETUP.md).
+
+---
+
+## Configuration options
+
+| Option | Default | Description |
+|---|---|---|
+| `enabled` | `true` | Master switch — set `false` to disable all compression |
+| `min_tokens_to_compress` | `200` | Skip compression for outputs smaller than this token count |
+| `live_zone_only` | `true` | Only compress the latest user message + tool results (safe for provider KV cache) |
+| `real_time` | `true` | Compress each tool result immediately via `tool.execute.after` hook |
+| `cache_align` | `true` | Normalize system prompt dynamic tokens for KV cache stability |
+| `verbose` | `false` | Log compression events to stdout |
+| `ccr_db_path` | *(in-memory)* | Path to SQLite file for persistent CCR storage across sessions |
+
+---
+
+## Tools provided
+
+### `headroom_retrieve`
+
+Retrieves the original (uncompressed) content for a CCR hash marker.
+
+The LLM automatically receives instructions to call this tool when it sees a `<<ccr:HASH>>` marker in a compressed output.
+
+```
+headroom_retrieve(hash: "2519ab63b8962b3998425b08")
+→ [original full content]
+```
+
+### `headroom_stats`
+
+Returns compression statistics for the current session.
+
+```
+headroom_stats()
+→ {
+    "messages_processed": 12,
+    "tokens_consumed": 45000,
+    "tokens_saved": 38000,
+    "savings_pct": 84.4,
+    "compressor_hits": {
+      "log": 5,
+      "json_array": 3,
+      "diff": 2,
+      "search": 2
+    }
+  }
+```
+
+---
+
+## How CCR (Compress-Cache-Retrieve) works
+
+1. **Compress**: content is reduced (e.g. 1000-item JSON array → 30 items)
+2. **Cache**: original bytes stored in SQLite with SHA-256 derived 24-hex key; TTL 5 min
+3. **Marker**: `<<ccr:HASH>>` injected into the compressed output
+4. **Retrieve**: LLM calls `headroom_retrieve(hash)` → gets original back
+
+The CCR store is fail-open: if a hash expires or the store is cleared, `headroom_retrieve` returns a helpful "content expired" message rather than throwing.
+
+For sessions longer than 5 minutes, set `ccr_db_path` to persist entries across turns.
+
+---
+
+## Invariants (always maintained)
+
+1. **Fail-open** — any compression error falls back to original content; never an exception
+2. **Token-monotone** — if compressed output ≥ original tokens, the original is used instead
+3. **Live-zone-only** — only the latest user message + latest tool results are compressed; cached message history is never modified (safe for provider KV cache)
+4. **Append-only** — once a message enters history, its bytes are frozen
+
+---
+
+## Project structure
+
+```
+src/
+  index.ts              ← Plugin entrypoint (server export)
+  config.ts             ← HeadroomOptions, parseOptions()
+  compress/
+    content-detector.ts ← 7-type cascade (JSON→Diff→HTML→Search→Log→Code→Text)
+    log-compressor.ts
+    search-compressor.ts
+    diff-compressor.ts
+    smart-crusher.ts     ← JSON array compression with Kneedle + BM25
+    pipeline.ts          ← Orchestrator (history + per-block)
+    kneedle.ts           ← Kneedle adaptive-K algorithm + SimHash + zlib validation
+    relevance.ts         ← BM25 relevance scoring for middle-item selection
+    cache-aligner.ts     ← System prompt normalization (UUIDs, timestamps, session IDs)
+    types.ts
+  ccr/
+    hash.ts              ← SHA-256 key derivation, CCR marker helpers
+    store.ts             ← CcrStore (bun:sqlite, capacity eviction, TTL)
+  tool/
+    retrieve.ts          ← headroom_retrieve tool
+    stats.ts             ← headroom_stats tool, SessionStats, recordCompression()
+  util/
+    tokens.ts            ← js-tiktoken async counter + char/4 fallback
+  test/                  ← 124 unit tests
+```
+
+---
+
+## Development
+
+```bash
+# Install dependencies
+bun install
+
+# Run all tests
+bun test
+
+# Build check
+bun build src/index.ts --target=bun --outfile=/dev/null
+```
+
+---
+
+## Known differences from headroom v0.24.0
+
+This is a TypeScript opencode-plugin port, not a full clone:
+
+| Feature | Status |
+|---|---|
+| CCR hash algorithm | SHA-256 (headroom uses BLAKE3/MD5) — markers are **not cross-compatible** |
+| CodeCompressor (tree-sitter AST) | Not implemented |
+| KompressCompressor (ML ONNX model) | Not implemented |
+| BM25 relevance | Implemented; embedding model not included |
+| Structural outlier detection | Not implemented |
+| HTTP proxy / `headroom wrap` | Not applicable (plugin-native) |
+| `headroom learn` / cross-agent memory | Not implemented |
+
+---
+
+## License
+
+Apache 2.0 — see [LICENSE](LICENSE).
+
+Based on [headroom v0.24.0](https://github.com/chopratejas/headroom) (Apache 2.0).
+
 
 ## What it does
 
