@@ -147,4 +147,45 @@ All 7 headroom invariants are maintained:
 
 ---
 
+## 10. Enhancements Over headroom
+
+### 10.1 Per-compressor boolean toggles
+
+**Not present in headroom v0.24.0.** Headroom controls compression granularity through
+auth-mode gating (PAYG/OAuth/Subscription) and pipeline extension registration — there
+are no simple `enabled: bool` flags for individual compressors. The only exception is
+`KompressMode::disabled`, specific to the ML model.
+
+This plugin adds `compressors: { smart_crusher, log, search, diff, kompress }` with
+per-compressor boolean defaults (`true`). Each flag gates the corresponding case in
+`dispatchCompressor()` — setting `search: false` means grep output passes through
+unchanged while all other compressors continue working.
+
+**Why this is safe:** All compressors are fully independent — zero dependencies between
+them. Each handles exactly one content type with no overlap. Disabling a compressor
+causes `dispatchCompressor()` to return `null`, which the pipeline treats as "no
+compression applied" → original content used. The CCR store, mixed-content splitter,
+and compression cache are all unaffected.
+
+**Config example:**
+```json
+{ "compressors": { "search": false, "kompress": false } }
+```
+
+### 10.2 `headroom_stats` tool
+
+No equivalent in headroom v0.24.0. Headroom has internal `CompressionManifest` metrics
+(Rust) and OTel tracing for observability, but no LLM-callable stats tool. This plugin
+exposes `headroom_stats` returning `{ messages_processed, tokens_saved, savings_pct,
+compressor_hits }` — useful for checking compression health mid-session.
+
+### 10.3 Persistent CCR SQLite path
+
+Headroom's Python `CcrStore` is file-system-bound (SQLite file at a fixed location).
+This plugin adds `ccr_db_path` as a configurable option and auto-detects the XDG data
+directory via `$XDG_DATA_HOME` when not configured. Falls back to `:memory:` if XDG
+is unset. This makes CCR persistence "just work" across opencode workspace setups.
+
+---
+
 *Updated: 2026-06-10*
