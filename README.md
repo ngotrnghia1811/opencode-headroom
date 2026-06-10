@@ -1,6 +1,6 @@
 # opencode-headroom
 
-[![npm](https://img.shields.io/npm/v/opencode-headroom)](https://www.npmjs.com/package/opencode-headroom)
+[![npm](https://img.shields.io/npm/v/@ngotrnghia1811/opencode-headroom)](https://www.npmjs.com/package/@ngotrnghia1811/opencode-headroom)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-124%20passing-brightgreen)](src/test)
 
@@ -44,16 +44,16 @@ tool output (10 000 tokens)
 ### npm (recommended)
 
 ```bash
-npm install opencode-headroom
+npm install @ngotrnghia1811/opencode-headroom
 # or
-bun add opencode-headroom
+bun add @ngotrnghia1811/opencode-headroom
 ```
 
 Add to your opencode config:
 
 ```jsonc
 // opencode.json  or  .opencode/opencode.json
-{ "plugin": ["opencode-headroom"] }
+{ "plugin": ["@ngotrnghia1811/opencode-headroom"] }
 ```
 
 ### Local development
@@ -74,7 +74,7 @@ Local path in config:
 ```json
 {
   "plugin": [
-    ["opencode-headroom", {
+    ["@ngotrnghia1811/opencode-headroom", {
       "enabled": true,
       "min_tokens_to_compress": 200,
       "live_zone_only": true,
@@ -106,7 +106,7 @@ If you use a custom XDG-workspace wrapper (like `./opencode-local.sh` in this re
   "plugin": [
     "opencode-claude-auth@latest",
     "@tarquinen/opencode-dcp@latest",
-    "opencode-headroom"           // ← add this line
+    "@ngotrnghia1811/opencode-headroom"           // ← add this line
   ]
 }
 ```
