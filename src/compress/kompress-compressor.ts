@@ -48,6 +48,7 @@ interface KompressTokenizer {
 
 interface TokenizerOpts {
   is_split_into_words: boolean
+  return_word_ids?: boolean
   truncation: boolean
   max_length: number
   padding: boolean
@@ -56,7 +57,7 @@ interface TokenizerOpts {
 interface TokenizerEncoding {
   input_ids: { data: Int32Array | BigInt64Array }
   attention_mask: { data: Int32Array | BigInt64Array }
-  word_ids(): (number | null)[]
+  word_ids?: ((() => (number | null)[]) | (number | null)[])
 }
 
 async function _loadModel(config: KompressConfig): Promise<{ model: KompressModel; tokenizer: KompressTokenizer } | null> {
@@ -159,6 +160,7 @@ export async function compressText(
       // Headroom: return_tensors="np" for ONNX path
       const encoding = await tokenizer(chunk_words, {
         is_split_into_words: true,
+        return_word_ids: true,
         truncation: true,
         max_length: 512,
         padding: true,
@@ -167,7 +169,26 @@ export async function compressText(
       const input_ids: number[][] = [Array.from(encoding.input_ids.data as any, Number)]
       const attention_mask: number[][] = [Array.from(encoding.attention_mask.data as any, Number)]
 
-      const word_ids: (number | null)[] = encoding.word_ids()
+      // word_ids: support @xenova/transformers v2 (.word_ids() method)
+      // and v3 (word_ids property, only present when return_word_ids: true)
+      // Falls back to sequential mapping when neither is available.
+      let word_ids: (number | null)[] = []
+      const encWordIds: any = encoding.word_ids
+      if (typeof encWordIds === "function") {
+        word_ids = encWordIds()                           // v2: method call
+      } else if (Array.isArray(encWordIds)) {
+        word_ids = encWordIds                             // v3: direct array
+      } else {
+        // Manual fallback: assign each token position to a word index
+        // sequentially. Approximate but prevents a hard crash.
+        word_ids = new Array(input_ids[0].length).fill(null) as (number | null)[]
+        let w = 0
+        for (let i = 0; i < input_ids[0].length; i++) {
+          word_ids[i] = w
+          w++
+          if (w >= chunk_words.length) w = chunk_words.length - 1
+        }
+      }
 
       if (cfg.target_ratio !== undefined) {
         // Top-K by score
