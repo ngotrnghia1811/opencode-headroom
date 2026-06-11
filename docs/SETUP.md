@@ -124,6 +124,7 @@ All options are optional. Omitted options use their defaults.
 | `verbose` | `boolean` | `false` | Log compression events to stdout: `[headroom] compressed N tokens via: strategy1, strategy2`. |
 | `ccr_db_path` | `string` | *(in-memory)* | Path to a SQLite file for persistent CCR storage across sessions. Use an absolute path (e.g. `~/.local/share/opencode/headroom.db`). When unset, CCR entries live in `:memory:` and are lost on session end. |
 | `compressors` | `object` | All `true` | Per-compressor toggles. Keys: `smart_crusher`, `log`, `search`, `diff`, `kompress`. Set any to `false` to disable that compressor. |
+| `compressor_params` | `object` | *(defaults)* | Per-compressor threshold overrides. See [Compressor Parameters](#compressor-parameters) for all sub-keys. |
 
 ### Full config example
 
@@ -164,6 +165,82 @@ Disable individual compressors via the `compressors` object:
 ```
 
 All keys default to `true` when omitted. Setting a key to `false` makes that content type pass through uncompressed. Unknown keys are silently ignored.
+
+### Compressor Parameters
+
+Override internal compressor thresholds via the `compressor_params` object. All sub-keys are optional — omitted keys use their defaults.
+
+```json
+{
+  "plugin": [
+    ["@ngotrnghia1811/opencode-headroom", {
+      "compressor_params": {
+        "smart_crusher": {
+          "min_items_to_analyze": 5,
+          "max_items": 50,
+          "first_fraction": 0.3,
+          "last_fraction": 0.15
+        },
+        "log": {
+          "max_errors": 20,
+          "error_context_lines": 5,
+          "max_stack_traces": 5,
+          "stack_trace_max_lines": 30,
+          "max_warnings": 10,
+          "max_total_lines": 200
+        },
+        "search": {
+          "max_matches_per_file": 10,
+          "max_files": 30,
+          "max_total_matches": 200
+        },
+        "diff": {
+          "max_context_lines": 5,
+          "max_hunks_per_file": 20,
+          "max_files": 15
+        },
+        "kompress": {
+          "score_threshold": 0.7,
+          "chunk_words": 500,
+          "target_ratio": 0.4
+        },
+        "ccr": {
+          "capacity": 2000,
+          "ttl_seconds": 600
+        }
+      }
+    }]
+  ]
+}
+```
+
+#### Parameter reference
+
+| Sub-key | Parameter | Default | Description |
+|---|---|---|---|
+| `smart_crusher` | `min_items_to_analyze` | 10 | Arrays shorter than this pass through uncompressed |
+| | `max_items` | 30 | Maximum items in compressed output |
+| | `first_fraction` | 0.3 | Fraction of K reserved for first items |
+| | `last_fraction` | 0.15 | Fraction of K reserved for last items |
+| `log` | `max_errors` | 10 | Maximum error/fail lines to keep |
+| | `error_context_lines` | 3 | Context lines kept around each error |
+| | `max_stack_traces` | 3 | Maximum stack trace blocks to keep |
+| | `stack_trace_max_lines` | 20 | Max lines per stack trace block |
+| | `max_warnings` | 5 | Maximum warnings after deduplication |
+| | `max_total_lines` | 100 | Hard cap on total selected output lines |
+| `search` | `max_matches_per_file` | 5 | Maximum matches shown per file |
+| | `max_files` | 20 | Maximum files included in output |
+| | `max_total_matches` | 100 | Global cap on total selected matches |
+| `diff` | `max_context_lines` | 3 | Max unchanged context lines around each change |
+| | `max_hunks_per_file` | 10 | Maximum hunks preserved per file |
+| | `max_files` | 10 | Maximum files preserved in output |
+| `kompress` | `score_threshold` | 0.5 | Words with score above this are kept |
+| | `chunk_words` | 350 | Words per processing chunk |
+| | `target_ratio` | *(unset)* | Alternative: keep top-K% words by score |
+| `ccr` | `capacity` | 1000 | Max entries before eviction |
+| | `ttl_seconds` | 300 | Entry expiry in seconds |
+
+Unknown keys in `compressor_params` are silently ignored.
 
 ---
 

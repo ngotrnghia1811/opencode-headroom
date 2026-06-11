@@ -21,7 +21,13 @@ export const server: Plugin = async (_input, options) => {
 
   if (!config.enabled) return {}
 
-  const store = new CcrStore({ dbPath: config.ccr_db_path ?? defaultCcrDbPath() })
+  const compressorParams = config.compressor_params
+  const ccrConfig = compressorParams?.ccr
+
+  const store = new CcrStore({
+    dbPath: config.ccr_db_path ?? defaultCcrDbPath(),
+    ...(ccrConfig ? { capacity: ccrConfig.capacity, ttl_seconds: ccrConfig.ttl_seconds } : {}),
+  })
 
   const cache = new CompressionCache()
 
@@ -30,7 +36,7 @@ export const server: Plugin = async (_input, options) => {
   const hooks: Record<string, unknown> = {
     "experimental.chat.messages.transform": async (_input: unknown, output: { messages: unknown[] }) => {
       const messages = output.messages as Parameters<typeof applyCompressionToMessages>[0]
-      const result = await applyCompressionToMessages(messages, config, store, cache, config.compressors)
+      const result = await applyCompressionToMessages(messages, config, store, cache, compressorParams, config.compressors)
       if (config.verbose && result.tokens_saved > 0) {
         console.log(`[headroom] compressed ${result.tokens_saved} tokens via: ${result.strategies.join(", ")}`)
       }
@@ -50,7 +56,7 @@ export const server: Plugin = async (_input, options) => {
       const tokenCount = await countTokensSafe(text)
       const minTokens = config.min_tokens_to_compress ?? 200
       if (tokenCount < minTokens) return
-      const result = await compressBlock(text, store, cache, config.compressors)
+      const result = await compressBlock(text, store, cache, compressorParams, config.compressors)
       if (!result) return
       if (result.tokensAfter >= tokenCount) return
       output.output = result.compressed

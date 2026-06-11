@@ -6,6 +6,42 @@ export interface CompressorConfig {
   kompress?: boolean         // default true — prose text compression (requires onnxruntime-node)
 }
 
+export interface CompressorParams {
+  smart_crusher?: {
+    min_items_to_analyze?: number
+    max_items?: number
+    first_fraction?: number
+    last_fraction?: number
+  }
+  log?: {
+    max_errors?: number
+    error_context_lines?: number
+    max_stack_traces?: number
+    stack_trace_max_lines?: number
+    max_warnings?: number
+    max_total_lines?: number
+  }
+  search?: {
+    max_matches_per_file?: number
+    max_files?: number
+    max_total_matches?: number
+  }
+  diff?: {
+    max_context_lines?: number
+    max_hunks_per_file?: number
+    max_files?: number
+  }
+  kompress?: {
+    score_threshold?: number
+    chunk_words?: number
+    target_ratio?: number
+  }
+  ccr?: {
+    capacity?: number
+    ttl_seconds?: number
+  }
+}
+
 export interface HeadroomOptions {
   enabled?: boolean
   min_tokens_to_compress?: number
@@ -16,6 +52,7 @@ export interface HeadroomOptions {
   /** Enable real-time tool-result compression via tool.execute.after hook. Default true. */
   real_time?: boolean
   compressors?: CompressorConfig
+  compressor_params?: CompressorParams
 }
 
 function extractBool(o: Record<string, unknown>, dottedPath: string, defaultVal: boolean): boolean {
@@ -47,5 +84,8 @@ export function parseOptions(options: unknown): HeadroomOptions {
       diff:          extractBool(o, "compressors.diff", true),
       kompress:      extractBool(o, "compressors.kompress", true),
     },
+    compressor_params: typeof o.compressor_params === "object" && o.compressor_params !== null
+      ? o.compressor_params as CompressorParams
+      : undefined,
   }
 }

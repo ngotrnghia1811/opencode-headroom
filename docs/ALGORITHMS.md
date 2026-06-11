@@ -456,10 +456,10 @@ which LLMs tolerate in tool output). The `countTokensSync` check uses the
 
 | Parameter | Default | Type | Configurable? | Description |
 |-----------|---------|------|---------------|-------------|
-| `min_items_to_analyze` | 10 | `number` | **Yes** (via `config` arg in `crushJsonArray()`) | Minimum array length before compression is attempted |
-| `max_items` | 30 | `number` | **Yes** | Maximum items in output (K cap) |
-| `first_fraction` | 0.3 | `number` | **Yes** | Fraction of K reserved for first items |
-| `last_fraction` | 0.15 | `number` | **Yes** | Fraction of K reserved for last items |
+| `min_items_to_analyze` | 10 | `number` | **Yes (via `compressor_params.smart_crusher`)** | Minimum array length before compression is attempted |
+| `max_items` | 30 | `number` | **Yes (via `compressor_params.smart_crusher`)** | Maximum items in output (K cap) |
+| `first_fraction` | 0.3 | `number` | **Yes (via `compressor_params.smart_crusher`)** | Fraction of K reserved for first items |
+| `last_fraction` | 0.15 | `number` | **Yes (via `compressor_params.smart_crusher`)** | Fraction of K reserved for last items |
 | `bias` | 1.0 | `number` | **No — code constant** (passed to Kneedle) | Multiplier applied to resolved K |
 | `smart_crusher` toggle | `true` | `boolean` | **Yes (toggle only)** (`compressors.smart_crusher` in `opencode.json`) | Enable/disable JSON array compression |
 | Hybrid alpha base | 0.5 | `number` | **No — code constant** (passed to `hybridScore()`) | Base alpha for BM25/embedding blend |
@@ -1107,16 +1107,16 @@ at the end provides aggregate statistics.
 
 | Parameter | Default | Type | Configurable? | Description |
 |-----------|---------|------|---------------|-------------|
-| `max_errors` | 10 | `number` | **Yes** (via `config` arg) | Maximum error/fail lines kept |
-| `error_context_lines` | 3 | `number` | **Yes** | Context lines around each kept error |
-| `keep_first_error` | true | `boolean` | **Yes** | Always keep the first error in the log |
-| `keep_last_error` | true | `boolean` | **Yes** | Always keep the last error in the log |
-| `max_stack_traces` | 3 | `number` | **Yes** | Maximum stack trace blocks kept |
-| `stack_trace_max_lines` | 20 | `number` | **Yes** | Max lines per kept stack trace block |
-| `max_warnings` | 5 | `number` | **Yes** | Maximum warning lines kept |
-| `dedupe_warnings` | true | `boolean` | **Yes** | Enable warning deduplication |
-| `keep_summary_lines` | true | `boolean` | **Yes** | Keep test-result summary lines |
-| `max_total_lines` | 100 | `number` | **Yes** | Hard cap on total output lines (used as Kneedle maxK) |
+| `max_errors` | 10 | `number` | **Yes (via `compressor_params.log`)** | Maximum error/fail lines kept |
+| `error_context_lines` | 3 | `number` | **Yes (via `compressor_params.log`)** | Context lines around each kept error |
+| `keep_first_error` | true | `boolean` | **No — code constant** | Always keep the first error in the log |
+| `keep_last_error` | true | `boolean` | **No — code constant** | Always keep the last error in the log |
+| `max_stack_traces` | 3 | `number` | **Yes (via `compressor_params.log`)** | Maximum stack trace blocks kept |
+| `stack_trace_max_lines` | 20 | `number` | **Yes (via `compressor_params.log`)** | Max lines per kept stack trace block |
+| `max_warnings` | 5 | `number` | **Yes (via `compressor_params.log`)** | Maximum warning lines kept |
+| `dedupe_warnings` | true | `boolean` | **No — code constant** | Enable warning deduplication |
+| `keep_summary_lines` | true | `boolean` | **No — code constant** | Keep test-result summary lines |
+| `max_total_lines` | 100 | `number` | **Yes (via `compressor_params.log`)** | Hard cap on total output lines (used as Kneedle maxK) |
 | `log` toggle | `true` | `boolean` | **Yes (toggle only)** (`compressors.log` in `opencode.json`) | Enable/disable log compression |
 | Stack trace bailout | 20 | `number` | **No — code constant** | Max consecutive stack-trace lines before state reset |
 | Kneedle minK for log | 10 | `number` | **No — code constant** | Minimum lines when using Kneedle to cap |
@@ -1299,11 +1299,11 @@ return resultLines.join("\n")
 
 | Parameter | Default | Type | Configurable? | Description |
 |-----------|---------|------|---------------|-------------|
-| `max_matches_per_file` | 5 | `number` | **Yes** (via `config` arg) | Maximum matches kept per file |
-| `max_files` | 20 | `number` | **Yes** | Maximum files kept in output |
-| `max_total_matches` | 100 | `number` | **Yes** | Hard cap on total matches across all files |
-| `keep_first_match` | true | `boolean` | **Yes** | Always keep the first match in each file |
-| `keep_last_match` | true | `boolean` | **Yes** | Always keep the last match in each file |
+| `max_matches_per_file` | 5 | `number` | **Yes (via `compressor_params.search`)** | Maximum matches kept per file |
+| `max_files` | 20 | `number` | **Yes (via `compressor_params.search`)** | Maximum files kept in output |
+| `max_total_matches` | 100 | `number` | **Yes (via `compressor_params.search`)** | Hard cap on total matches across all files |
+| `keep_first_match` | true | `boolean` | **No — code constant** | Always keep the first match in each file |
+| `keep_last_match` | true | `boolean` | **No — code constant** | Always keep the last match in each file |
 | `search` toggle | `true` | `boolean` | **Yes (toggle only)** (`compressors.search` in `opencode.json`) | Enable/disable search compression |
 | Baseline score | 0.5 | `number` | **No — code constant** | Baseline relevance score |
 | Error pattern boost | +0.5 | `number` | **No — code constant** | Score boost for error-like lines |
@@ -1483,10 +1483,10 @@ tree. It tracks `hunksInFile` to cap per-file and uses a context-window buffer
 
 | Parameter | Default | Type | Configurable? | Description |
 |-----------|---------|------|---------------|-------------|
-| `max_context_lines` | 3 | `number` | **Yes** (via `config` arg) | Max context lines kept around each change |
-| `max_hunks_per_file` | 10 | `number` | **Yes** | Maximum hunks kept per file |
-| `max_files` | 10 | `number` | **Yes** | Maximum files kept in output |
-| `keep_file_headers` | true | `boolean` | **Yes** | Always include file headers |
+| `max_context_lines` | 3 | `number` | **Yes (via `compressor_params.diff`)** | Max context lines kept around each change |
+| `max_hunks_per_file` | 10 | `number` | **Yes (via `compressor_params.diff`)** | Maximum hunks kept per file |
+| `max_files` | 10 | `number` | **Yes (via `compressor_params.diff`)** | Maximum files kept in output |
+| `keep_file_headers` | true | `boolean` | **No — code constant** | Always include file headers |
 | `diff` toggle | `true` | `boolean` | **Yes (toggle only)** (`compressors.diff` in `opencode.json`) | Enable/disable diff compression |
 
 ### Example
@@ -1713,11 +1713,11 @@ if enable_ccr and ratio < 0.8 and store:
 
 | Parameter | Default | Type | Configurable? | Description |
 |-----------|---------|------|---------------|-------------|
-| `model_id` | `"chopratejas/kompress-base"` | `string` | **Yes** | HuggingFace model repo for ONNX file |
-| `chunk_words` | 350 | `number` | **Yes** | Max words per inference chunk (must leave room for special tokens in 512 max_length) |
-| `enable_ccr` | true | `boolean` | **Yes** | Inject CCR hash when compression ratio < 0.8 |
-| `target_ratio` | `undefined` | `number?` | **Yes** | If set, use top-K mode; else threshold mode |
-| `score_threshold` | 0.5 | `number` | **Yes** | Minimum score to keep a word (threshold mode only) |
+| `model_id` | `"chopratejas/kompress-base"` | `string` | **No — code constant** | HuggingFace model repo for ONNX file |
+| `chunk_words` | 350 | `number` | **Yes (via `compressor_params.kompress`)** | Max words per inference chunk (must leave room for special tokens in 512 max_length) |
+| `enable_ccr` | true | `boolean` | **No — code constant** | Inject CCR hash when compression ratio < 0.8 |
+| `target_ratio` | `undefined` | `number?` | **Yes (via `compressor_params.kompress`)** | If set, use top-K mode; else threshold mode |
+| `score_threshold` | 0.5 | `number` | **Yes (via `compressor_params.kompress`)** | Minimum score to keep a word (threshold mode only) |
 | `kompress` toggle | `true` | `boolean` | **Yes (toggle only)** (`compressors.kompress` in `opencode.json`) | Enable/disable ML compression |
 | Tokenizer max_length | 512 | `number` | **No — code constant** | ModernBERT max input length |
 | Passthrough min words | 10 | `number` | **No — code constant** | Text shorter than this bypasses ML entirely |
@@ -2791,9 +2791,9 @@ private purge():
 
 | Parameter | Default | Type | Configurable? | Description |
 |-----------|---------|------|---------------|-------------|
-| `capacity` | 1000 | `number` | **Yes** (via `CcrStoreConfig` constructor arg) | Maximum number of entries before eviction |
-| `ttl_seconds` | 300 (5 min) | `number` | **Yes** (via `ttl_seconds` or `ttlMs`) | Entry expiry in seconds |
-| `path` | `":memory:"` | `string` | **Yes** (via `path` or `dbPath`) — maps to `ccr_db_path` in `opencode.json` | SQLite database path |
+| `capacity` | 1000 | `number` | **Yes (via `compressor_params.ccr`)** | Maximum number of entries before eviction |
+| `ttl_seconds` | 300 (5 min) | `number` | **Yes (via `compressor_params.ccr`)** | Entry expiry in seconds |
+| `path` | `":memory:"` | `string` | **Yes** (via `ccr_db_path` in `opencode.json`) | SQLite database path |
 | Eviction fraction | 0.1 | `number` | **No — code constant** | Fraction of capacity evicted when full |
 | Hash algorithm | SHA-256 | `string` | **No — code constant** | Hash function for key derivation |
 | Hash length | 24 hex chars | `number` | **No — code constant** | Truncation of hash digest |

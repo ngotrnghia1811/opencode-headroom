@@ -81,7 +81,7 @@ describe("compressor config", () => {
   test("smart_crusher: false → JSON array passes through uncompressed", async () => {
     const text = jsonArrayText(50)
     const cfg: CompressorConfig = { smart_crusher: false }
-    const result = await compressBlock(text, undefined, undefined, cfg)
+    const result = await compressBlock(text, undefined, undefined, undefined, cfg)
     expect(result).toBeNull()
   })
 
@@ -90,7 +90,7 @@ describe("compressor config", () => {
   test("log: false → build log passes through uncompressed", async () => {
     const text = buildLogText()
     const cfg: CompressorConfig = { log: false }
-    const result = await compressBlock(text, undefined, undefined, cfg)
+    const result = await compressBlock(text, undefined, undefined, undefined, cfg)
     expect(result).toBeNull()
   })
 
@@ -99,7 +99,7 @@ describe("compressor config", () => {
   test("search: false → grep output passes through uncompressed", async () => {
     const text = searchOutputText()
     const cfg: CompressorConfig = { search: false }
-    const result = await compressBlock(text, undefined, undefined, cfg)
+    const result = await compressBlock(text, undefined, undefined, undefined, cfg)
     expect(result).toBeNull()
   })
 
@@ -108,7 +108,7 @@ describe("compressor config", () => {
   test("diff: false → git diff passes through uncompressed", async () => {
     const text = diffText()
     const cfg: CompressorConfig = { diff: false }
-    const result = await compressBlock(text, undefined, undefined, cfg)
+    const result = await compressBlock(text, undefined, undefined, undefined, cfg)
     expect(result).toBeNull()
   })
 
@@ -117,7 +117,7 @@ describe("compressor config", () => {
   test("kompress: false → prose text passes through uncompressed", async () => {
     const text = proseText()
     const cfg: CompressorConfig = { kompress: false }
-    const result = await compressBlock(text, undefined, undefined, cfg)
+    const result = await compressBlock(text, undefined, undefined, undefined, cfg)
     expect(result).toBeNull()
   })
 
