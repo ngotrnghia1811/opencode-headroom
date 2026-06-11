@@ -60,6 +60,9 @@ export const server: Plugin = async (_input, options) => {
       if (!result) return
       if (result.tokensAfter >= tokenCount) return
       output.output = result.compressed
+      if (config.verbose) {
+        console.log(`[headroom:realtime] saved ${tokenCount - result.tokensAfter} tokens (${result.strategies.join(", ")})`)
+      }
       recordCompression(sessionStats, tokenCount, tokenCount - result.tokensAfter, result.strategies)
     }
   }
