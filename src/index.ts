@@ -17,6 +17,12 @@ function defaultCcrDbPath(): string | undefined {
   return `${dataHome}/opencode/headroom.db`
 }
 
+function defaultLogPath(): string {
+  const dataHome = process.env.XDG_DATA_HOME
+  if (dataHome) return `${dataHome}/opencode/headroom.log`
+  return `${process.env.HOME ?? "/tmp"}/.opencode/headroom.log`
+}
+
 export const server: Plugin = async (_input, options) => {
   const config = parseOptions(options)
 
@@ -34,7 +40,7 @@ export const server: Plugin = async (_input, options) => {
 
   const sessionStats: SessionStats = createSessionStats()
 
-  const log = createLogger(config.log_file ?? `${process.env.HOME ?? "/tmp"}/.opencode/headroom.log`, config.verbose ?? false)
+  const log = createLogger(config.log_file ?? defaultLogPath(), config.verbose ?? false)
 
   const hooks: Record<string, unknown> = {
     "experimental.chat.messages.transform": async (_input: unknown, output: { messages: unknown[] }) => {
