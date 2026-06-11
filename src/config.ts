@@ -51,6 +51,8 @@ export interface HeadroomOptions {
   ccr_db_path?: string
   /** Enable real-time tool-result compression via tool.execute.after hook. Default true. */
   real_time?: boolean
+  /** Path to verbose log file. Default ~/.opencode/headroom.log */
+  log_file?: string
   compressors?: CompressorConfig
   compressor_params?: CompressorParams
 }
@@ -77,6 +79,7 @@ export function parseOptions(options: unknown): HeadroomOptions {
     cache_align: o.cache_align !== false,
     ccr_db_path: typeof o.ccr_db_path === "string" ? o.ccr_db_path : undefined,
     real_time: o.real_time !== false,
+    log_file: typeof o.log_file === "string" ? o.log_file : undefined,
     compressors: {
       smart_crusher: extractBool(o, "compressors.smart_crusher", true),
       log:           extractBool(o, "compressors.log", true),

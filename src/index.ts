@@ -9,6 +9,7 @@ import { createRetrieveTool } from "./tool/retrieve"
 import { createStatsTool, createSessionStats, recordCompression } from "./tool/stats"
 import type { SessionStats } from "./tool/stats"
 import { countTokensSafe } from "./util/tokens"
+import { createLogger } from "./util/log"
 
 function defaultCcrDbPath(): string | undefined {
   const dataHome = process.env.XDG_DATA_HOME
@@ -33,12 +34,14 @@ export const server: Plugin = async (_input, options) => {
 
   const sessionStats: SessionStats = createSessionStats()
 
+  const log = createLogger(config.log_file ?? `${process.env.HOME ?? "/tmp"}/.opencode/headroom.log`, config.verbose ?? false)
+
   const hooks: Record<string, unknown> = {
     "experimental.chat.messages.transform": async (_input: unknown, output: { messages: unknown[] }) => {
       const messages = output.messages as Parameters<typeof applyCompressionToMessages>[0]
       const result = await applyCompressionToMessages(messages, config, store, cache, compressorParams, config.compressors)
       if (config.verbose && result.tokens_saved > 0) {
-        console.log(`[headroom] compressed ${result.tokens_saved} tokens via: ${result.strategies.join(", ")}`)
+        log.log(`compressed ${result.tokens_saved} tokens via: ${result.strategies.join(", ")}`)
       }
       recordCompression(sessionStats, result.tokens_consumed, result.tokens_saved, result.strategies)
     },
@@ -61,7 +64,7 @@ export const server: Plugin = async (_input, options) => {
       if (result.tokensAfter >= tokenCount) return
       output.output = result.compressed
       if (config.verbose) {
-        console.log(`[headroom:realtime] saved ${tokenCount - result.tokensAfter} tokens (${result.strategies.join(", ")})`)
+        log.log(`[realtime] saved ${tokenCount - result.tokensAfter} tokens (${result.strategies.join(", ")})`)
       }
       recordCompression(sessionStats, tokenCount, tokenCount - result.tokensAfter, result.strategies)
     }
