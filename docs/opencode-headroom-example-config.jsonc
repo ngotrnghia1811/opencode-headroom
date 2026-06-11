@@ -1,0 +1,223 @@
+// =============================================================================
+// opencode-headroom — full plugin configuration reference
+// =============================================================================
+// Copy this file to your opencode config (opencode.json or opencode.jsonc)
+// and adjust as needed. All fields are optional — omitted fields use defaults.
+//
+// Installation:
+//   "plugin": ["./opencode-headroom-example-config.jsonc"]
+//   or inline in opencode.json:
+//   "plugin": [["@ngotrnghia1811/opencode-headroom", { ... }]]
+
+{
+  // ================ TOP-LEVEL OPTIONS ================
+
+  // Master switch. Set false to disable all compression.
+  // Default: true
+  "enabled": true,
+
+  // Token threshold. Text blocks with fewer tokens than this
+  // are passed through uncompressed (too small to matter).
+  // Tuning: lower = more aggressive, higher = less overhead.
+  // Default: 200
+  "min_tokens_to_compress": 200,
+
+  // Live-zone-only compression. When true, only the latest user
+  // message and subsequent tool results are compressed. Everything
+  // before the most recent user message is preserved verbatim
+  // for provider KV cache stability. Disable to compress all history.
+  // Default: true
+  "live_zone_only": true,
+
+  // Real-time tool compression. When true, each tool result is
+  // compressed immediately via the tool.execute.after hook, before
+  // it enters message history. When false, compression only happens
+  // during batch message history compaction (chat.messages.transform).
+  // Default: true
+  "real_time": true,
+
+  // System prompt normalization. When true, dynamic tokens in the
+  // system prompt (UUIDs, ISO timestamps, dates, hex session IDs)
+  // are replaced with stable placeholders like <<UUID>>.
+  // This improves provider KV cache hit rates across turns.
+  // Default: true
+  "cache_align": true,
+
+  // Verbose logging. When true, compression events are logged to
+  // stdout with token savings and compressor names.
+  // Default: false
+  "verbose": false,
+
+  // CCR database path for persistent compressed-content retrieval.
+  // - When unset: uses in-memory SQLite (lost on session end).
+  // - Set a file path for cross-session persistence.
+  // - Tilde expansion: ~/ expands to home directory.
+  // - XDG auto-detection: if unset and XDG_DATA_HOME is set,
+  //   defaults to $XDG_DATA_HOME/opencode/headroom.db
+  // - Not needed if you don't plan to use headroom_retrieve.
+  // Default: undefined (in-memory)
+  "ccr_db_path": "~/.opencode/headroom.db",
+
+
+  // ================ PER-COMPRESSOR TOGGLES ================
+  // Set any compressor to false to disable it entirely.
+  // Disabled compressors pass their content through unchanged.
+  // All default: true
+
+  "compressors": {
+
+    // JSON array compression (Kneedle adaptive-K + BM25/embedding hybrid scoring)
+    // Disable if: you never have large JSON outputs, or want LLM to always see full arrays.
+    "smart_crusher": true,
+
+    // Build / test / lint log compression (error preservation, dedup, stack traces)
+    // Disable if: your workflow doesn't produce large logs, or you need exact log output.
+    "log": true,
+
+    // Grep / ripgrep search result compression (per-file match collapsing)
+    // Disable if: you need the full grep output every time, e.g. for exact line counts.
+    "search": true,
+
+    // Git diff compression (context-line dropping, hunk/file caps)
+    // Disable if: you review full diffs and need complete context.
+    "diff": true,
+
+    // ML prose compression (ONNX kompress-base model, requires onnxruntime-node)
+    // Disable if: you don't have the optional ONNX dependencies, or prose compression
+    //   isn't valuable for your workflow. Falls back to passthrough gracefully.
+    "kompress": true
+  },
+
+
+  // ================ COMPRESSOR PARAMETER OVERRIDES ================
+  // Fine-tune internal thresholds for each compressor.
+  // Every sub-key inside each section is optional — omitted keys use defaults.
+  // The entire "compressor_params" section is also optional.
+
+  "compressor_params": {
+
+    // ---------- SmartCrusher (JSON arrays) ----------
+    "smart_crusher": {
+
+      // Arrays shorter than this are passed through uncompressed.
+      // Default: 10
+      "min_items_to_analyze": 10,
+
+      // Maximum items to keep in the compressed output.
+      // Lower = more aggressive compression, higher = more info preserved.
+      // Default: 30
+      "max_items": 30,
+
+      // Fraction of max_items reserved for the first N items of the array.
+      // Useful when array order is chronological / most-recent-first.
+      // Default: 0.3
+      "first_fraction": 0.3,
+
+      // Fraction of max_items reserved for the last N items of the array.
+      // Default: 0.15
+      "last_fraction": 0.15
+    },
+
+    // ---------- LogCompressor (build / test / lint output) ----------
+    "log": {
+
+      // Maximum error and fail lines to keep.
+      // Default: 10
+      "max_errors": 10,
+
+      // Lines of context kept before and after each error line
+      // (surrounding log entries that may explain the error).
+      // Default: 3
+      "error_context_lines": 3,
+
+      // Maximum number of complete stack trace blocks to preserve.
+      // Default: 3
+      "max_stack_traces": 3,
+
+      // Maximum lines within each stack trace block.
+      // Default: 20
+      "stack_trace_max_lines": 20,
+
+      // Maximum warning lines to keep after deduplication.
+      // Default: 5
+      "max_warnings": 5,
+
+      // Hard cap on total selected log lines in the compressed output.
+      // The Kneedle adaptive sizer may reduce this further if the log
+      // is highly redundant.
+      // Default: 100
+      "max_total_lines": 100
+    },
+
+    // ---------- SearchCompressor (grep / ripgrep output) ----------
+    "search": {
+
+      // Maximum matches to show per file.
+      // Default: 5
+      "max_matches_per_file": 5,
+
+      // Maximum files to include in the output.
+      // Files are sorted by match count (most matches first).
+      // Default: 20
+      "max_files": 20,
+
+      // Global cap on total selected matches across all files.
+      // Default: 100
+      "max_total_matches": 100
+    },
+
+    // ---------- DiffCompressor (git diffs) ----------
+    "diff": {
+
+      // Maximum unchanged context lines to keep on each side of a change.
+      // Lower = more aggressive. Setting to 0 shows only the changed lines.
+      // Default: 3
+      "max_context_lines": 3,
+
+      // Maximum hunks (change blocks) to preserve per file.
+      // Hunks are sorted by change density (additions + deletions).
+      // Default: 10
+      "max_hunks_per_file": 10,
+
+      // Maximum files to include in the compressed diff.
+      // Files are sorted by total change count.
+      // Default: 10
+      "max_files": 10
+    },
+
+    // ---------- KompressCompressor (ML prose/plain text) ----------
+    "kompress": {
+
+      // Words with model score above this are kept.
+      // Lower = more text kept (less compression, more info).
+      // Higher = more aggressive compression.
+      // Default: 0.5
+      "score_threshold": 0.5,
+
+      // Number of words per processing chunk (limited by model's 512-token window).
+      // Increase for wider context at the cost of memory.
+      // Default: 350
+      "chunk_words": 350,
+
+      // Alternative to score_threshold: keep top-K% words by score.
+      // If set, score_threshold is ignored.
+      // Example: 0.3 means keep the top 30% scoring words.
+      // Default: undefined (use score_threshold)
+      "target_ratio": null
+    },
+
+    // ---------- CCR Store (Compress-Cache-Retrieve) ----------
+    "ccr": {
+
+      // Maximum number of entries the store can hold before eviction.
+      // When exceeded, oldest 10% of entries are evicted.
+      // Default: 1000
+      "capacity": 1000,
+
+      // Entry time-to-live in seconds from insertion time.
+      // After TTL expires, headroom_retrieve will return "content expired".
+      // Default: 300 (5 minutes)
+      "ttl_seconds": 300
+    }
+  }
+}
