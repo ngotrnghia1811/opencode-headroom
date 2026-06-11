@@ -233,7 +233,11 @@ export async function compressText(
 
   } catch (e) {
     // Fail-open (headroom kompress_compressor.py:759-761)
-    console.warn("Kompress compression failed:", e)
+    // Suppress full stack trace — sharp native module errors are cosmetic
+    // and the plugin degrades gracefully (returns null = passthrough)
+    if (import.meta.env?.NODE_ENV !== "production") {
+      console.warn("[headroom] Kompress compressor unavailable (optional dep missing)")
+    }
     return null
   }
 }
