@@ -225,6 +225,19 @@ src/
 
 ---
 
+## Documentation
+
+| Document | Description |
+|---|---|
+| [SETUP.md](SETUP.md) | Installation, configuration reference, how it works, troubleshooting |
+| [ALGORITHMS.md](ALGORITHMS.md) | Deep-dive: every compression algorithm step-by-step (15 sections) |
+| [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md) | Original porting plan from headroom v0.24.0 |
+| [discrepancy.md](discrepancy.md) | Differences between this port and headroom v0.24.0 |
+| [headroom-learn-todo.md](headroom-learn-todo.md) | Deferred feature: headroom learn (failure mining) |
+| [opencode-headroom-example-config.jsonc](opencode-headroom-example-config.jsonc) | Full config with comments — all 30+ options documented |
+
+---
+
 ## Development
 
 ```bash
